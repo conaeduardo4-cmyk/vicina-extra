@@ -18,7 +18,7 @@ export const dist = k => k < 1 ? Math.round(k * 100) * 10 + ' m' : k.toFixed(k <
 
 // cosa chiedere a OpenStreetMap: solo filtri per tag (i filtri sul solo nome sono lentissimi)
 const SOC = 'volontar|onlus|odv|solidal|caritas|croce rossa|misericordia|pubblica assistenza|sant.egidio|aiuto|social|famigli|donne|anzian|giovan|ragazz|disabil|handicap|autis|ascolto|accoglienza|comunit|banco|mensa|auser|anteas|arci|acli|patronato|inquilini|sunia|sicet|uniat|anffas|uildm|uici|anmic|emergency|casa delle|consultori|antiviolenza|centro (civico|sociale|anziani|giovani)';
-const PARTS = [
+export const PARTS = [
   'nwr["amenity"~"^(social_facility|community_centre|social_centre|food_bank|youth_centre)$"]',
   'nwr["healthcare"="counselling"]',
   'nwr["office"~"^(employment_agency|ngo|charity)$"]',
@@ -104,12 +104,44 @@ function clean(items, me) {
     .map(p => ({ ...p, d: km(me, p) })).sort((a, b) => a.d - b.d);
 }
 
-// luoghi intorno a me: 3 km, poi 7 e 15 se intorno c'è poco. onPartial mostra subito i primi risultati.
+// ---------- luoghi già pronti (preparati ogni settimana da GitHub Actions, vedi scripts/dati-luoghi.mjs) ----------
+export const TILE = 0.25;
+const REPO = 'conaeduardo4-cmyk/vicina-extra';
+const SRC = [k => `https://raw.githubusercontent.com/${REPO}/dati/t/${k}.json`, k => `https://cdn.jsdelivr.net/gh/${REPO}@dati/t/${k}.json`];
+const fromRow = r => ({ id: r[0], cat: r[1], name: r[2], lat: r[3], lng: r[4], addr: r[5], phone: r[6], web: r[7], email: '', hours: r[8], wheel: r[9], fee: r[10], desc: r[11], one: r[12] || '' });
+async function tile(k) {
+  const ctrls = SRC.map(() => new AbortController());
+  const one = (f, i) => new Promise((ok, ko) => setTimeout(async () => {
+    try {
+      const r = await fetch(f(k), { signal: ctrls[i].signal });
+      if (r.status === 404) { ok([]); return; } // riquadro senza luoghi
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json(); ctrls.forEach((c, x) => { if (x !== i) c.abort(); }); ok(j.map(fromRow));
+    } catch (e) { ko(e); }
+  }, i * 1800));
+  const t = setTimeout(() => ctrls.forEach(c => c.abort()), 15000);
+  try { return await Promise.any(SRC.map(one)); } finally { clearTimeout(t); }
+}
+async function fromTiles(me, r) {
+  const dLa = r / 111.32, dLo = r / (111.32 * Math.cos(me.lat * Math.PI / 180)), keys = [];
+  for (let a = Math.floor((me.lat - dLa) / TILE); a <= Math.floor((me.lat + dLa) / TILE); a++)
+    for (let b = Math.floor((me.lng - dLo) / TILE); b <= Math.floor((me.lng + dLo) / TILE); b++) keys.push(a + '_' + b);
+  const res = await Promise.allSettled(keys.map(tile));
+  if (res.every(x => x.status === 'rejected')) throw res[0].reason;
+  return res.flatMap(x => x.status === 'fulfilled' ? x.value : []).filter(p => km(me, p) <= r * 1.1);
+}
+
+// luoghi intorno a me: prima i riquadri già pronti (veloci); se non arrivano, la ricerca dal vivo: 3 km, poi 7 e 15 se intorno c'è poco. onPartial mostra subito i primi risultati.
 export async function nearby(me, { force = false, onPartial } = {}) {
   let c = null; try { c = JSON.parse(ls.get(KEY) || 'null'); } catch { /* */ }
   const fresh = c && Date.now() - c.at < TTL && km(c.at_pos, me) < 1;
   if (!force && fresh) return clean(c.items, me);
   let items = null, err = null;
+  try {
+    let list = await fromTiles(me, 6);
+    if (list.length < 15) list = await fromTiles(me, 15);
+    if (list.length) { items = clean(list, me); ls.set(KEY, JSON.stringify({ at: Date.now(), at_pos: me, items })); return items; }
+  } catch (e) { console.warn('riquadri', e); }
   for (const r of [2.5, 6, 14]) {
     try {
       const j = await race(query(me, r), r < 5 ? 20000 : 30000);

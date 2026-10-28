@@ -5,7 +5,7 @@ import { darkPhysical, OFM } from './map-style.js';
 import { CAT } from './data.js';
 
 async function pickStyle() {
-  try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return darkPhysical({ relief: true }); } catch { /* offline */ }
+  try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return darkPhysical({ relief: false }); } catch { /* offline */ }
   return null;
 }
 

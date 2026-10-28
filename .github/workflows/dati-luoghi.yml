@@ -1,0 +1,41 @@
+# Prepara i luoghi di tutta Italia (OpenStreetMap) in piccoli file che l'app scarica in un attimo.
+# Gira ogni lunedì e a mano (Actions → Prepara i luoghi → Run workflow). I file finiscono nel ramo «dati».
+name: Prepara i luoghi
+on:
+  workflow_dispatch:
+    inputs:
+      solo:
+        description: 'Solo alcuni blocchi (es. 41,12;45,9). Vuoto = tutta Italia'
+        required: false
+        default: ''
+  schedule:
+    - cron: '17 3 * * 1'
+permissions: { contents: write }
+concurrency: { group: dati-luoghi, cancel-in-progress: false }
+jobs:
+  dati:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Riquadri della volta prima
+        run: |
+          mkdir -p out/t
+          if git ls-remote --exit-code origin dati >/dev/null 2>&1; then
+            git fetch --depth 1 origin dati && git --work-tree=out checkout FETCH_HEAD -- . 2>/dev/null || true
+            git reset -q
+          fi
+          ls out/t | wc -l
+      - name: Scarica i luoghi
+        env: { SOLO: '${{ inputs.solo }}' }
+        run: node scripts/dati-luoghi.mjs out
+      - name: Pubblica nel ramo dati
+        run: |
+          cd out
+          git init -q -b dati
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          printf '# Dati di Vicina Extra\nLuoghi da OpenStreetMap (© contributori OpenStreetMap, licenza ODbL), aggiornati ogni settimana.\n' > README.md
+          git add -A && git commit -qm "Luoghi aggiornati $(date -u +%F)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" dati

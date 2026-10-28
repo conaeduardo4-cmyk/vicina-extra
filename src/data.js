@@ -38,7 +38,16 @@ export const IC = {
   star: 'M12 3l2.6 5.6 6 .6-4.5 4 1.3 6-5.4-3.2L6.6 19l1.3-6-4.5-4 6-.6z',
   locate: 'M12 2v3M12 19v3M2 12h3M19 12h3M12 17a5 5 0 100-10 5 5 0 000 10z',
   young: 'M12 8a3 3 0 100-6 3 3 0 000 6zM7 22l2-9h6l2 9M9 13l-2-3M15 13l2-3',
-  sparkle: 'M12 3l1.8 4.6L18.5 9.4l-4.7 1.8L12 16l-1.8-4.8L5.5 9.4l4.7-1.8z'
+  sparkle: 'M12 3l1.8 4.6L18.5 9.4l-4.7 1.8L12 16l-1.8-4.8L5.5 9.4l4.7-1.8z',
+  bookmark: 'M6 3h12v18l-6-4-6 4z',
+  user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4.4 3.6-8 8-8s8 3.6 8 8',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  out: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5v.5',
+  text: 'M4 7V5h16v2M12 5v14M9 19h6',
+  list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z'
 };
 
 // colori: [sfondo icona, colore icona, colore segnaposto sulla mappa]
@@ -345,7 +354,7 @@ export function quizResult(r) {
     if (r.umore === 'bulli') { tut.add('bullismo'); num.add('n19696'); }
     if (r.umore === 'casa') { num.add('n114'); num.add('n19696'); cats.add('consultori'); }
     if (r.umore === 'corpo') cats.add('consultori');
-    cats.add('giovani');
+    fun.forEach(f => cats.add(f.cat)); cats.add('giovani'); cats.add('consultori');
   } else {
     if (r.eta === '18') sit.add('giovani');
     if (r.eta === '65') { sit.add('anziani'); cats.add('anziani'); }
@@ -382,30 +391,30 @@ export const TUTELE = [
   { id: 'truffe', t: 'Truffe a casa o al telefono', s: 'Falsi tecnici, finti carabinieri, «nipoti» in difficoltà', c: C.amber, ic: IC.phone, tag: 'sociali',
     segnali: ['Qualcuno ha fretta e ti mette paura («suo figlio ha avuto un incidente»)', 'Ti chiedono contanti, gioielli o codici', 'Dicono di essere tecnici, operatori o forze dell’ordine senza preavviso'],
     fare: ['Non aprire e non dare soldi: nessun ente vero chiede contanti a casa', 'Chiudi la chiamata e richiama tu un familiare o il numero ufficiale', 'Chiama il 112: verificano subito', 'Se è successo, denuncia: non è colpa tua'],
-    num: ['n112', 'argento'] },
+    num: ['n112', 'argento'], ask: ['Mi ha chiamato un finto carabiniere, cosa faccio?', 'Come riconosco una truffa al telefono?', 'Ho già dato dei soldi: posso riaverli?'] },
   { id: 'coppia', t: 'Controllo o violenza in coppia', s: 'Anche psicologica ed economica', c: C.violet, ic: IC.heart, tag: 'antiviolenza',
     segnali: ['Ti controlla il telefono, i soldi o con chi esci', 'Ti allontana da amici e famiglia', 'Ti insulta, ti umilia, ti minaccia o ti fa paura', 'Ti impedisce di lavorare o di avere un conto tuo'],
     fare: ['Parlane con un centro antiviolenza: è gratuito e riservato, anche senza denunciare', 'Conserva messaggi, foto, referti in un posto sicuro', 'Prepara un piano: una persona di fiducia, documenti e un po’ di soldi pronti', 'Se sei in pericolo adesso chiama il 112'],
-    num: ['n1522', 'n112'] },
+    num: ['n1522', 'n112'], ask: ['Il mio partner mi controlla il telefono: è normale?', 'Come preparo un piano per andarmene?', 'Posso parlare con un centro senza denunciare?'] },
   { id: 'discriminazione', t: 'Discriminazione per disabilità', s: 'Al lavoro, a scuola, nei servizi', c: C.sky, ic: IC.access, tag: 'disabilita',
     segnali: ['Ti negano un servizio o l’accesso a un luogo', 'Al lavoro non ti danno gli adattamenti di cui hai bisogno', 'Ti trattano peggio degli altri per la tua condizione'],
     fare: ['Annota cosa è successo, quando e chi c’era', 'Chiedi per iscritto il motivo del rifiuto', 'Rivolgiti a un’associazione delle persone con disabilità, a un sindacato o a un patronato', 'Puoi segnalare il caso anche al Garante nazionale dei diritti delle persone con disabilità'],
-    num: [] },
+    num: [], ask: ['Al lavoro non mi danno gli adattamenti: cosa posso fare?', 'A chi segnalo una discriminazione?', 'Mi hanno negato l’accesso a un locale: è legale?'] },
   { id: 'sfratto', t: 'Rischio di sfratto', s: 'Chi chiamare prima che sia tardi', c: C.rose, ic: IC.home, tag: 'casa',
     segnali: ['Sei indietro con l’affitto e non riesci a recuperare', 'È arrivata una lettera dell’avvocato o del tribunale'],
     fare: ['Non aspettare: parla subito con un sindacato degli inquilini (SUNIA, SICET, UNIAT)', 'Chiedi ai servizi sociali del Comune del Fondo per la morosità incolpevole', 'Prova ad accordarti con il proprietario per un piano di rientro, per iscritto'],
-    num: [] },
+    num: [], ask: ['Mi è arrivata la lettera di sfratto: quanto tempo ho?', 'Cos’è la morosità incolpevole?', 'Come propongo un piano di rientro?'] },
   { id: 'debiti', t: 'Debiti e prestiti pericolosi', s: 'Usura, finanziarie, rate che non finiscono', c: C.green, ic: IC.euro, tag: 'volontariato',
     segnali: ['Qualcuno ti presta soldi con interessi altissimi o senza contratto', 'Ricevi minacce per restituire', 'Paghi una rata per coprirne un’altra'],
     fare: ['Non firmare niente sotto pressione', 'Rivolgiti a uno sportello o a una fondazione antiusura: l’aiuto è gratuito', 'Se i debiti sono troppi esiste una procedura di legge per il sovraindebitamento: chiedi a un Organismo di composizione della crisi (OCC)', 'Se ti minacciano chiama il 112'],
-    num: ['n112'] },
+    num: ['n112'], ask: ['Come riconosco l’usura?', 'Cos’è la procedura di sovraindebitamento?', 'Ho troppe rate: da dove comincio?'] },
   { id: 'bullismo', t: 'Bullismo e cyberbullismo', s: 'Per ragazzi e per i genitori', c: C.pink, ic: IC.phoneSm, tag: 'giovani',
     segnali: ['Prese in giro continue, esclusione, minacce', 'Foto o messaggi su di te pubblicati senza permesso', 'Paura di andare a scuola o di usare il telefono'],
     fare: ['Parlane con un adulto di cui ti fidi', 'Salva le prove (screenshot) e blocca chi ti attacca', 'Segnala i contenuti alla piattaforma; dai 14 anni puoi chiedere tu stesso di toglierli', 'Puoi rivolgerti alla Polizia Postale (commissariatodips.it)'],
-    num: ['n19696', 'n114'] },
+    num: ['n19696', 'n114'], ask: ['Mi prendono in giro sui social: cosa faccio?', 'Come chiedo di togliere un contenuto su di me?', 'Mio figlio è vittima di bullismo: come lo aiuto?'] },
   { id: 'solitudine', t: 'Solitudine e momenti difficili', s: 'Quando ti senti solo o non ce la fai', c: C.teal, ic: IC.chat, tag: 'anziani',
     segnali: ['Passi giorni senza parlare con nessuno', 'Ti senti giù, inutile o senza via d’uscita'],
     fare: ['Chiama una linea di ascolto: c’è sempre qualcuno pronto a parlare con te', 'Prova un luogo vicino: centro anziani, centro giovani, associazioni, palestre popolari', 'Parlane con il tuo medico di base', 'Se pensi di farti del male, chiama subito il 112'],
-    num: ['amico', 'samaritans', 'argento'] }
+    num: ['amico', 'samaritans', 'argento'], ask: ['Mi sento solo, cosa posso fare vicino a me?', 'Come faccio a conoscere persone nuove?', 'Mia madre anziana è sempre sola: come la aiuto?'] }
 ];
 export const TUT = Object.fromEntries(TUTELE.map(t => [t.id, t]));
