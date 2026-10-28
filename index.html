@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#09090B">
+<title>Vicina Extra</title>
+</head>
+<body>
+<div id="app">
+  <section class="screen tab" id="s-home"></section>
+  <section class="screen tab" id="s-luoghi">
+    <div class="map-wrap"><div id="map"></div><div class="map-msg" id="map-msg" hidden></div></div>
+    <div class="m-head">
+      <label class="m-search"><svg class="i"><use href="#i-search"/></svg><input id="m-q" type="search" placeholder="Cerca un servizio o un luogo" autocomplete="off" enterkeyhint="search" aria-label="Cerca un servizio o un luogo"></label>
+      <div class="chips" id="m-filters"></div>
+    </div>
+    <div class="m-sheet" id="m-sheet"><div class="grab"></div><div class="chips" id="m-cats"></div><div id="m-list"></div></div>
+  </section>
+  <section class="screen" id="s-luogo"></section>
+  <section class="screen tab" id="s-aiuti"></section>
+  <section class="screen" id="s-aiuto"></section>
+  <section class="screen" id="s-quiz"></section>
+  <section class="screen tab" id="s-tutele"></section>
+  <section class="screen" id="s-tutela"></section>
+  <section class="screen tab" id="s-insieme"></section>
+  <section class="screen" id="s-ai">
+    <div class="ai-top"><button class="pillbtn" data-a="ai-list"><svg class="i"><use href="#i-menu"/></svg>Le tue chat</button>
+      <div class="ai-ttl" id="ai-ttl"></div>
+      <button class="roundbtn" data-a="ai-new" aria-label="Nuova chat"><svg class="i"><use href="#i-edit"/></svg></button></div>
+    <div id="ai-msgs"></div>
+    <div class="ai-foot">
+      <div class="ai-in"><input id="ai-txt" type="text" placeholder="Scrivi la tua domanda…" maxlength="1500" enterkeyhint="send" aria-label="Scrivi la tua domanda">
+        <button class="ai-send" data-a="ai-send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
+      <p class="ai-note">Le risposte possono sbagliare: per decisioni importanti chiedi a un patronato o ai servizi sociali.</p>
+    </div>
+  </section>
+  <section class="screen" id="s-ailist"></section>
+
+  <nav id="nav">
+    <button data-tab="home"><svg class="i"><use href="#i-home"/></svg><span>Home</span></button>
+    <button data-tab="luoghi"><svg class="i"><use href="#i-pin"/></svg><span>Luoghi</span></button>
+    <button data-tab="aiuti"><svg class="i"><use href="#i-doc"/></svg><span>Aiuti</span></button>
+    <button data-tab="tutele"><svg class="i"><use href="#i-shield"/></svg><span>Tutele</span></button>
+    <button data-tab="insieme"><svg class="i"><use href="#i-people"/></svg><span>Insieme</span></button>
+  </nav>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" id="icons"></svg>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
