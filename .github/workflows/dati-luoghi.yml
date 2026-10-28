@@ -1,13 +1,8 @@
-# Prepara i luoghi di tutta Italia (OpenStreetMap) in piccoli file che l'app scarica in un attimo.
+# Prepara i luoghi di tutta Italia (OpenStreetMap, estratto Geofabrik) in piccoli file che l'app scarica in un attimo.
 # Gira ogni lunedì e a mano (Actions → Prepara i luoghi → Run workflow). I file finiscono nel ramo «dati».
 name: Prepara i luoghi
 on:
   workflow_dispatch:
-    inputs:
-      solo:
-        description: 'Solo alcuni blocchi (es. 41,12;45,9). Vuoto = tutta Italia'
-        required: false
-        default: ''
   schedule:
     - cron: '17 3 * * 1'
 permissions: { contents: write }
@@ -15,27 +10,32 @@ concurrency: { group: dati-luoghi, cancel-in-progress: false }
 jobs:
   dati:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - name: Riquadri della volta prima
+      - name: Osmium
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool > /dev/null && osmium --version | head -1
+      - name: Scarica l'Italia da Geofabrik
+        run: curl -sSfL --retry 3 -o italia.osm.pbf https://download.geofabrik.de/europe/italy-latest.osm.pbf && ls -lh italia.osm.pbf
+      - name: Tieni solo i luoghi utili
         run: |
-          mkdir -p out/t
-          if git ls-remote --exit-code origin dati >/dev/null 2>&1; then
-            git fetch --depth 1 origin dati && git --work-tree=out checkout FETCH_HEAD -- . 2>/dev/null || true
-            git reset -q
-          fi
-          ls out/t | wc -l
-      - name: Scarica i luoghi
-        env: { SOLO: '${{ inputs.solo }}' }
-        run: node scripts/dati-luoghi.mjs out
+          osmium tags-filter italia.osm.pbf \
+            nwr/amenity=social_facility,community_centre,social_centre,food_bank,youth_centre \
+            nwr/healthcare nwr/office=employment_agency,ngo,charity,association,foundation,government,tax_advisor,union \
+            nwr/leisure=sports_centre,fitness_centre,pitch,sports_hall \
+            -o filtrati.osm.pbf --overwrite
+          rm italia.osm.pbf
+          osmium export filtrati.osm.pbf -f geojsonseq -o luoghi.geojsonseq --overwrite -a type,id -u type_id --geometry-types=point,linestring,polygon
+          ls -lh filtrati.osm.pbf luoghi.geojsonseq
+      - name: Riquadri
+        run: node scripts/dati-luoghi.mjs luoghi.geojsonseq out
       - name: Pubblica nel ramo dati
         run: |
           cd out
           git init -q -b dati
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          printf '# Dati di Vicina Extra\nLuoghi da OpenStreetMap (© contributori OpenStreetMap, licenza ODbL), aggiornati ogni settimana.\n' > README.md
+          printf '# Dati di Vicina Extra\nLuoghi da OpenStreetMap (© contributori OpenStreetMap, licenza ODbL), estratto Geofabrik, aggiornati ogni settimana.\n' > README.md
           git add -A && git commit -qm "Luoghi aggiornati $(date -u +%F)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" dati
