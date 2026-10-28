@@ -22,7 +22,7 @@ jobs:
       - name: Tieni solo i luoghi utili
         run: |
           osmium tags-filter italia.osm.pbf \
-            nwr/amenity=social_facility,community_centre,social_centre,food_bank,youth_centre \
+            nwr/amenity=social_facility,community_centre,social_centre,food_bank,youth_centre,townhall,library \
             nwr/healthcare nwr/office=employment_agency,ngo,charity,association,foundation,government,tax_advisor,union \
             nwr/leisure=sports_centre,fitness_centre,pitch,sports_hall \
             -o filtrati.osm.pbf --overwrite

@@ -74,6 +74,12 @@ export const CATS = [
   { id: 'sociali', t: 'Servizi sociali', one: 'Servizi sociali', c: C.blue, ic: IC.building,
     what: ['Segretariato sociale: ti orientano tra gli aiuti', 'Sostegno economico e per la casa', 'Assistenza domiciliare per anziani e persone con disabilità', 'Aiuto a famiglie e minori'],
     how: 'Rivolgiti al segretariato sociale del tuo Comune o Municipio: è gratuito.' },
+  { id: 'comune', t: 'Comune e Municipio', one: 'Comune o Municipio', c: C.blue, ic: IC.building,
+    what: ['Segretariato sociale e assistenti sociali', 'Anagrafe: residenza, carta d’identità, certificati', 'Bandi per casa, affitto e contributi', 'Uffici per famiglie, scuola e disabilità'],
+    how: 'Chiedi all’ingresso o all’URP dov’è il segretariato sociale: spesso si prenota per telefono o online.' },
+  { id: 'biblioteche', t: 'Biblioteche', one: 'Biblioteca', c: C.teal, ic: IC.doc,
+    what: ['Prestito gratuito di libri, film e giornali', 'Sale studio e Wi-Fi', 'Letture, gruppi, corsi e incontri', 'Aiuto con il computer e lo SPID in molte sedi'],
+    how: 'Iscrizione gratuita con un documento. Aperte a tutti, anche ai ragazzi.' },
   { id: 'quartiere', t: 'Centri di quartiere', one: 'Centro civico o sociale', c: C.violet, ic: IC.people,
     what: ['Corsi, laboratori e incontri spesso gratuiti', 'Feste, cinema, mercatini, iniziative del quartiere', 'Sportelli di ascolto e informazione', 'Un posto dove conoscere i vicini'],
     how: 'Guarda il calendario delle attività o passa a chiedere: di solito sono aperti a tutti.' },
@@ -109,7 +115,7 @@ export const CATS = [
     how: 'I patronati sono gratuiti per le domande all’INPS. Porta documento, codice fiscale e i documenti richiesti.' }
 ];
 export const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
-export const INSIEME_CATS = ['quartiere', 'giovani', 'anziani', 'oratori', 'palestre', 'volontariato', 'disabilita'];
+export const INSIEME_CATS = ['quartiere', 'biblioteche', 'giovani', 'anziani', 'oratori', 'palestre', 'volontariato', 'disabilita'];
 
 // ---------- numeri utili ----------
 export const NUM = {

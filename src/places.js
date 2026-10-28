@@ -19,12 +19,12 @@ export const dist = k => k < 1 ? Math.round(k * 100) * 10 + ' m' : k.toFixed(k <
 // cosa chiedere a OpenStreetMap: solo filtri per tag (i filtri sul solo nome sono lentissimi)
 const SOC = 'volontar|onlus|odv|solidal|caritas|croce rossa|misericordia|pubblica assistenza|sant.egidio|aiuto|social|famigli|donne|anzian|giovani|giovanil|ragazz|disabil|handicap|autis|ascolto|accoglienza|comunit|banco|mensa|auser|anteas|arci|acli|patronato|inquilini|sunia|sicet|uniat|anffas|uildm|uici|anmic|emergency|casa delle|consultori|antiviolenza|centro (civico|sociale|anziani|giovani)';
 export const PARTS = [
-  'nwr["amenity"~"^(social_facility|community_centre|social_centre|food_bank|youth_centre)$"]',
+  'nwr["amenity"~"^(social_facility|community_centre|social_centre|food_bank|youth_centre|townhall|library)$"]',
   'nwr["healthcare"="counselling"]',
   'nwr["office"~"^(employment_agency|ngo|charity)$"]',
   `nwr["office"~"^(association|foundation|government|tax_advisor|union)$"]["name"~"${SOC}|caf|impiego|lavoro|abitativ|casa|inps",i]`,
   'nwr["healthcare"]["name"~"consultori",i]',
-  'nwr["leisure"~"^(sports_centre|fitness_centre|pitch|sports_hall)$"]["name"~"popolar|orator",i]'
+  'nwr["leisure"~"^(sports_centre|fitness_centre|pitch|sports_hall)$"]["name"~"popolar|orator|polisportiva|uisp",i]'
 ];
 function query(me, r) {
   const dLa = r / 111.32, dLo = r / (111.32 * Math.cos(me.lat * Math.PI / 180));
@@ -36,11 +36,11 @@ function query(me, r) {
 const NM = t => [t.name, t.official_name, t.operator].filter(Boolean).join(' ');
 export function relevant(t) {
   const n = NM(t);
-  if (/^(social_facility|community_centre|social_centre|food_bank|youth_centre)$/.test(t.amenity || '')) return true;
+  if (/^(social_facility|community_centre|social_centre|food_bank|youth_centre|townhall|library)$/.test(t.amenity || '')) return true;
   if (t.healthcare === 'counselling' || (t.healthcare && /consultori/i.test(n))) return true;
   if (/^(employment_agency|ngo|charity)$/.test(t.office || '')) return true;
   if (/^(association|foundation|government|tax_advisor|union)$/.test(t.office || '') && (SOC_RE.test(n) || /caf|impiego|lavoro|abitativ|casa|inps/i.test(n))) return true;
-  if (/^(sports_centre|fitness_centre|pitch|sports_hall)$/.test(t.leisure || '') && /popolar|orator/i.test(n)) return true;
+  if (/^(sports_centre|fitness_centre|pitch|sports_hall)$/.test(t.leisure || '') && /popolar|orator|polisportiva|uisp/i.test(n)) return true;
   return false;
 }
 
@@ -49,6 +49,8 @@ const SOC_RE = new RegExp(SOC, 'i');
 const has = (t, re) => re.test([t.name, t.official_name, t.operator, t.description, t['name:it']].filter(Boolean).join(' '));
 export function classify(t) {
   const sf = t.social_facility || '', sfor = t['social_facility:for'] || '', am = t.amenity || '', of = t.office || '';
+  if (am === 'library') return /universit|dipartimento|facolt|privat|archivio|seminario/i.test(t.name || '') || t.access === 'private' ? null : 'biblioteche';
+  if (am === 'townhall') return 'comune';
   if (sf === 'nursing_home' || sf === 'assisted_living' || sf === 'hospice') return null; // RSA e simili: non sono luoghi di incontro
   if (/women/.test(sfor) || has(t, /antiviolenza|casa delle donne|centro donn|casa rifugio|donne in difficolt/i)) return 'antiviolenza';
   if (t.healthcare === 'counselling' || has(t, /consultori/i)) return 'consultori';
@@ -61,7 +63,7 @@ export function classify(t) {
   if ((/senior/.test(sfor) && sf !== 'group_home') || t.community_centre === 'senior_centre' || has(t, /anzian|terza et|\bAUSER\b|\bANTEAS\b|\bANCeSCAO\b|over ?6\d|pensionat/i)) return 'anziani';
   if (has(t, /orator/i)) return 'oratori';
   if (t.community_centre === 'youth_centre' || am === 'youth_centre' || /juvenile|child/.test(sfor) || has(t, /informagiovani|giovani|giovanil|aggregazione|youth|ludotec|spazio ragazzi|centro ragazzi/i)) return 'giovani';
-  if (t.leisure || has(t, /palestra popolare|boxe popolare|sport popolare|polisportiva popolare/i)) return has(t, /popolar/i) ? 'palestre' : null;
+  if (t.leisure || has(t, /palestra popolare|boxe popolare|sport popolare|polisportiva popolare/i)) return has(t, /popolar|polisportiva|uisp/i) ? 'palestre' : null;
   if (am === 'community_centre' || am === 'social_centre' || has(t, /centro (civico|sociale|culturale|di quartiere)|casa del quartiere|casa di quartiere/i)) return 'quartiere';
   if (/^(ngo|charity)$/.test(of) || (/^(association|foundation|union)$/.test(of) && has(t, SOC_RE)) || has(t, /volontari|\bCSV\b|caritas|croce rossa|misericordia|pubblica assistenza|sant.egidio|\bonlus\b|\bodv\b|\baps\b/i)) return 'volontariato';
   if (am === 'social_facility') return 'sociali';

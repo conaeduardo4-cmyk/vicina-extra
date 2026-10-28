@@ -87,10 +87,10 @@ function back() {
 /* ---------------- profilo (per chi) ---------------- */
 const PROF = [['tutti', 'Per me'], ['giovani', 'Giovani'], ['famiglie', 'Famiglie'], ['anziani', 'Anziani'], ['disabilita', 'Disabilità']];
 const PROF_CATS = {
-  tutti: ['sociali', 'consultori', 'quartiere', 'casa', 'lavoro', 'antiviolenza', 'patronati', 'volontariato'],
-  giovani: ['giovani', 'palestre', 'oratori', 'consultori', 'quartiere', 'volontariato', 'lavoro', 'antiviolenza'],
+  tutti: ['sociali', 'comune', 'consultori', 'quartiere', 'casa', 'lavoro', 'patronati', 'antiviolenza'],
+  giovani: ['giovani', 'palestre', 'oratori', 'biblioteche', 'consultori', 'quartiere', 'volontariato', 'lavoro'],
   famiglie: ['consultori', 'sociali', 'casa', 'oratori', 'patronati', 'quartiere', 'antiviolenza', 'accoglienza'],
-  anziani: ['anziani', 'quartiere', 'sociali', 'patronati', 'volontariato', 'disabilita', 'accoglienza', 'consultori'],
+  anziani: ['anziani', 'quartiere', 'biblioteche', 'sociali', 'patronati', 'volontariato', 'comune', 'disabilita'],
   disabilita: ['disabilita', 'patronati', 'lavoro', 'sociali', 'quartiere', 'volontariato', 'palestre', 'casa']
 };
 let prof = ls.get('prof') || 'tutti';
