@@ -18,7 +18,7 @@ jobs:
       - name: Osmium
         run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool > /dev/null && osmium --version | head -1
       - name: Scarica l'Italia da Geofabrik
-        run: curl -sSfL --retry 3 -o italia.osm.pbf https://download.geofabrik.de/europe/italy-latest.osm.pbf && ls -lh italia.osm.pbf
+        run: curl -sSfL --retry 5 --retry-all-errors --speed-limit 200000 --speed-time 90 -o italia.osm.pbf https://download.geofabrik.de/europe/italy-latest.osm.pbf && ls -lh italia.osm.pbf
       - name: Tieni solo i luoghi utili
         run: |
           osmium tags-filter italia.osm.pbf \
