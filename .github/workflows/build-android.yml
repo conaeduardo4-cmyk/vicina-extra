@@ -42,7 +42,7 @@ jobs:
         run: VITE_APP_VERSION="$APP_VERSION" npm run build
       - name: Progetto Android
         run: |
-          run() { echo "▶ $*"; "$@" > "$RUNNER_TEMP/step.log" 2>&1; c=$?; cat "$RUNNER_TEMP/step.log"; if [ $c -ne 0 ]; then echo "::error title=$1 $2 fallito::$(tail -c 1500 "$RUNNER_TEMP/step.log" | tr '\n' ' ')"; exit $c; fi; }
+          run() { echo "▶ $*"; c=0; "$@" > "$RUNNER_TEMP/step.log" 2>&1 || c=$?; cat "$RUNNER_TEMP/step.log"; if [ $c -ne 0 ]; then echo "::error title=$1 $2 fallito::$(tail -c 1500 "$RUNNER_TEMP/step.log" | tr '\n' ' ')"; exit $c; fi; }
           run npx cap add android
           SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"; echo "sdk.dir=$SDK" > android/local.properties
           (yes 2>/dev/null | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1) || true
