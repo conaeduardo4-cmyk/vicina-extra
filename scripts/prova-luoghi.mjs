@@ -6,7 +6,7 @@ for (const [n, [lat, lng]] of Object.entries(CITTA)) {
   try {
     const it = await nearby({ lat, lng }, { force: true, onPartial: p => console.log(`  ${n}: parziale ${p.length}`) });
     const per = {}; it.forEach(p => { per[p.cat] = (per[p.cat] || 0) + 1; });
-    console.log(`${n}: ${it.length} luoghi in ${((Date.now() - t) / 1000).toFixed(1)} s`, JSON.stringify(per));
-    console.log('   es.:', it.slice(0, 8).map(p => `${p.cat}:${p.name}`).join(' | '));
-  } catch (e) { console.log(`${n}: ERRORE dopo ${((Date.now() - t) / 1000).toFixed(1)} s`, e.message); }
+    console.log(`::notice title=${n}::${it.length} luoghi in ${((Date.now() - t) / 1000).toFixed(1)} s`, JSON.stringify(per));
+    console.log(`::notice title=${n} esempi::` + it.slice(0, 8).map(p => `${p.cat}:${p.name}`).join(' | '));
+  } catch (e) { console.log(`::error title=${n}::ERRORE dopo ${((Date.now() - t) / 1000).toFixed(1)} s`, e.message); }
 }
