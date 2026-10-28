@@ -114,98 +114,267 @@ export const NUM = {
 };
 
 // ---------- aiuti e diritti ----------
-// ogni misura: t nome, s cos'è, chi a chi spetta, come dove si chiede, url fonte ufficiale
+// ogni misura: t nome · s cos'è · chi a chi si rivolge · serve cosa preparare · dove dove si chiede · url fonte ufficiale
+// Niente importi né soglie precise: cambiano ogni anno. La fonte ufficiale e il patronato confermano i requisiti.
+export const GRUPPI = [['soldi', 'Soldi e lavoro'], ['casa', 'Casa'], ['famiglia', 'Famiglia e figli'], ['salute', 'Salute e disabilità'], ['eta', 'Giovani e anziani'], ['difficili', 'Situazioni difficili']];
+const INPS = 'https://www.inps.it';
 export const SITUAZIONI = [
-  { id: 'disabilita', t: 'Ho una disabilità', c: C.sky, ic: IC.access, tag: 'disabilita',
-    intro: 'Ci sono riconoscimenti che aprono la strada a sostegni economici, permessi e lavoro. Si chiedono con una sola domanda all’INPS.',
+  { id: 'lavoro', g: 'soldi', t: 'Ho perso il lavoro', c: C.green, ic: IC.work, tag: 'lavoro',
+    intro: 'Ci sono sostegni economici e percorsi gratuiti per ritrovare lavoro. Alcuni hanno una scadenza: muoviti nei primi giorni.',
     misure: [
-      { t: 'Invalidità civile', s: 'Riconosce la tua condizione con una percentuale. In base alla percentuale e al reddito può dare un assegno o una pensione, l’indennità di accompagnamento (se non sei autonomo, senza limiti di reddito), esenzioni dai ticket, protesi e ausili.', url: 'https://www.inps.it' },
-      { t: 'Legge 104', s: 'Riconosce l’handicap. Se è grave dà diritto a 3 giorni di permesso retribuito al mese per te o per un familiare che ti assiste, al congedo straordinario per il familiare e ad agevolazioni fiscali (per esempio sull’acquisto dell’auto).', url: 'https://www.inps.it' },
-      { t: 'Collocamento mirato', s: 'Con un’invalidità sopra il 45% ti iscrivi al centro per l’impiego: le aziende devono riservare dei posti alle persone con disabilità (Legge 68/1999).', url: 'https://www.lavoro.gov.it' },
-      { t: 'Contrassegno per il parcheggio', s: 'Il contrassegno europeo (CUDE) ti fa usare i posti riservati e le zone a traffico limitato. Si chiede al Comune.', url: '' }
+      { t: 'NASpI (disoccupazione)', s: 'Un’indennità mensile per chi era dipendente e ha perso il lavoro senza volerlo (licenziamento, contratto scaduto, dimissioni per giusta causa).', chi: 'Lavoratori dipendenti, anche a tempo determinato, con abbastanza settimane di contributi negli ultimi anni.', serve: 'Documento, codice fiscale, IBAN, la lettera di licenziamento o la data di fine contratto.', dove: 'Online sul sito INPS con SPID o CIE, oppure gratis con un patronato. Entro 68 giorni dalla fine del lavoro.', url: INPS },
+      { t: 'DIS-COLL', s: 'L’indennità di disoccupazione per collaboratori (co.co.co.), assegnisti e dottorandi con borsa.', chi: 'Chi aveva una collaborazione iscritta alla Gestione separata INPS.', serve: 'Documento, codice fiscale, IBAN, dati del contratto.', dove: 'INPS online o patronato, entro 68 giorni.', url: INPS },
+      { t: 'Iscrizione al centro per l’impiego (DID)', s: 'Dichiari di essere disponibile a lavorare: ti dà accesso a corsi gratuiti, orientamento, offerte e ad alcuni sostegni.', chi: 'Chiunque sia senza lavoro, anche se non ha mai lavorato.', serve: 'Documento e codice fiscale.', dove: 'Online sul portale del lavoro della tua regione o al centro per l’impiego.', url: 'https://www.lavoro.gov.it' },
+      { t: 'Supporto per la formazione e il lavoro', s: 'Un’indennità mensile mentre segui corsi, tirocini o progetti per il lavoro.', chi: 'Persone tra 18 e 59 anni con ISEE basso che non hanno diritto all’Assegno di inclusione.', serve: 'ISEE valido, SPID o CIE.', dove: 'Sul sito INPS o con un patronato; poi si firma il patto con il centro per l’impiego.', url: INPS }
     ],
-    passi: ['Il medico (di solito quello di base) invia all’INPS il certificato medico introduttivo.', 'Fai la domanda all’INPS online o, gratis, con un patronato. Puoi chiedere invalidità e Legge 104 insieme.', 'Ti chiamano per la visita della commissione medica: porta i documenti sanitari che hai.'],
-    nota: 'In alcune province è in prova la nuova procedura unica della riforma sulla disabilità: il patronato ti dice se vale anche per te.' },
-  { id: 'casa', t: 'Faccio fatica con l’affitto', c: C.amber, ic: IC.home, tag: 'casa',
+    passi: ['Fai la domanda di NASpI (o DIS-COLL) entro 68 giorni: se aspetti perdi dei giorni di indennità.', 'Iscriviti al centro per l’impiego: online bastano pochi minuti.', 'Fai l’ISEE e chiedi al patronato se ti spettano altri aiuti.', 'Chiedi al centro per l’impiego dei corsi gratuiti della tua regione.'],
+    doc: ['Documento d’identità', 'Codice fiscale', 'IBAN intestato a te', 'Ultime buste paga e lettera di fine lavoro', 'SPID o CIE'],
+    ask: ['Ho perso il lavoro: mi spetta la NASpI?', 'Mi sono dimesso: posso avere la disoccupazione?', 'Come mi iscrivo al centro per l’impiego?'] },
+  { id: 'reddito', g: 'soldi', t: 'Non arrivo a fine mese', c: C.amber, ic: IC.euro, tag: 'sociali',
+    intro: 'Se i soldi non bastano per le spese di base non sei solo: ci sono sostegni dello Stato, del Comune e delle associazioni. Il primo passo è quasi sempre l’ISEE.',
+    misure: [
+      { t: 'Assegno di inclusione', s: 'Un sostegno mensile per le famiglie con ISEE basso, con una carta per le spese.', chi: 'Famiglie in cui c’è almeno una persona minorenne, con disabilità, con 60 anni o più, oppure seguita dai servizi sociali.', serve: 'ISEE valido, SPID o CIE, dati di residenza.', dove: 'Sul sito INPS, con un patronato o un CAF.', url: INPS },
+      { t: 'Contributi economici del Comune', s: 'Aiuti una tantum o per un periodo: per bollette, affitto, spese urgenti, buoni spesa.', chi: 'Chi ha difficoltà economiche e vive in quel Comune; ogni Comune ha regole sue.', serve: 'ISEE e documenti delle spese.', dove: 'Segretariato sociale del Comune o del Municipio.', url: '' },
+      { t: 'Empori solidali e pacchi alimentari', s: 'Spesa gratuita o quasi, con una tessera a punti o un pacco periodico.', chi: 'Famiglie e persone in difficoltà, di solito su segnalazione di servizi sociali o centri d’ascolto.', serve: 'A volte ISEE o una lettera dei servizi sociali.', dove: 'Centri d’ascolto Caritas, parrocchie, associazioni, servizi sociali.', url: '' },
+      { t: 'Bonus sociale bollette', s: 'Uno sconto su luce, gas e acqua che arriva da solo in bolletta.', chi: 'Chi ha un ISEE sotto la soglia prevista o riceve l’Assegno di inclusione.', serve: 'Solo l’ISEE aggiornato ogni anno.', dove: 'Nessuna domanda: basta fare l’ISEE.', url: 'https://www.arera.it' }
+    ],
+    passi: ['Fai l’ISEE gratis al CAF o online sul sito INPS (ISEE precompilato).', 'Prendi appuntamento al segretariato sociale del Comune e racconta la tua situazione.', 'Chiedi al patronato se puoi avere l’Assegno di inclusione.', 'Per la spesa di questi giorni vai a un centro d’ascolto o a un emporio solidale.'],
+    doc: ['Documento e codice fiscale di tutta la famiglia', 'Contratto d’affitto o mutuo', 'Redditi e saldo dei conti (per l’ISEE)', 'Bollette e spese da pagare'],
+    ask: ['Non riesco a fare la spesa: a chi mi rivolgo?', 'Come si fa l’ISEE?', 'Cosa sono gli empori solidali?'] },
+  { id: 'bollette', g: 'soldi', t: 'Le bollette sono troppo care', c: C.violet, ic: IC.bolt, tag: 'patronati',
+    intro: 'Il bonus sociale abbassa luce, gas e acqua e arriva da solo, basta avere l’ISEE aggiornato. Se sei già indietro con i pagamenti puoi chiedere di rateizzare.',
+    misure: [
+      { t: 'Bonus sociale luce, gas e acqua', s: 'Uno sconto automatico in bolletta.', chi: 'Chi ha un ISEE sotto soglia (più alta per le famiglie con almeno 4 figli) o riceve l’Assegno di inclusione.', serve: 'ISEE aggiornato ogni anno.', dove: 'Nessuna domanda: i dati arrivano da soli al fornitore.', url: 'https://www.arera.it' },
+      { t: 'Bonus per disagio fisico', s: 'Uno sconto sulla luce se in casa usi apparecchi medici elettrici salvavita.', chi: 'Chi usa apparecchi come respiratori, concentratori di ossigeno o simili, senza limiti di ISEE.', serve: 'Certificato dell’ASL sugli apparecchi usati.', dove: 'Comune o CAF.', url: 'https://www.arera.it' },
+      { t: 'Rateizzazione delle bollette', s: 'Se una bolletta è molto più alta del solito o sei indietro, puoi chiedere di pagarla a rate.', chi: 'Tutti i clienti, in particolare per conguagli alti.', serve: 'La bolletta e il codice cliente.', dove: 'Al servizio clienti del fornitore, per iscritto.', url: 'https://www.arera.it' }
+    ],
+    passi: ['Fai o aggiorna l’ISEE (gratis al CAF o online).', 'Controlla in bolletta la voce del bonus.', 'Se sei indietro, chiedi per iscritto la rateizzazione prima del distacco.', 'Per un aiuto in più chiedi ai servizi sociali del Comune.'],
+    doc: ['Ultime bollette', 'Codice cliente (POD per la luce, PDR per il gas)', 'ISEE'],
+    ask: ['Come faccio ad avere il bonus sociale?', 'Mi è arrivata una bolletta altissima, cosa faccio?', 'Possono staccarmi la luce se non pago?'] },
+  { id: 'casa', g: 'casa', t: 'Faccio fatica con l’affitto', c: C.amber, ic: IC.home, tag: 'casa',
     intro: 'Se il canone pesa troppo o rischi di perdere la casa, chiedi aiuto il prima possibile: prima si interviene, più strade ci sono.',
     misure: [
-      { t: 'Contributo per l’affitto', s: 'Un aiuto per pagare il canone se hai un reddito basso. Lo danno Comuni e Regioni con un bando, di solito una volta all’anno.', url: '' },
-      { t: 'Fondo per la morosità incolpevole', s: 'Se non riesci a pagare perché hai perso il lavoro o parte del reddito, può aiutarti a evitare lo sfratto. Si chiede al Comune.', url: '' },
-      { t: 'Case popolari (ERP)', s: 'Alloggi a canone basso assegnati con una graduatoria. Si partecipa al bando del Comune o dell’ente casa regionale.', url: '' },
-      { t: 'Emergenza abitativa', s: 'Se resti senza casa, i servizi sociali possono trovarti una sistemazione temporanea.', url: '' }
+      { t: 'Contributo per l’affitto', s: 'Un aiuto per pagare il canone se hai un reddito basso.', chi: 'Inquilini con contratto registrato e ISEE sotto la soglia del bando.', serve: 'Contratto registrato, ricevute dell’affitto, ISEE.', dove: 'Bando del Comune o della Regione, di solito una volta all’anno.', url: '' },
+      { t: 'Fondo per la morosità incolpevole', s: 'Un aiuto per evitare lo sfratto se non paghi perché hai perso il lavoro o parte del reddito.', chi: 'Inquilini con sfratto per morosità causata da un calo di reddito non voluto.', serve: 'Atto di sfratto, documenti sul calo di reddito, ISEE.', dove: 'Comune (ufficio casa o servizi sociali).', url: '' },
+      { t: 'Case popolari (ERP)', s: 'Alloggi a canone basso assegnati con una graduatoria.', chi: 'Residenti o lavoratori nel Comune con reddito basso e senza altre case adatte.', serve: 'ISEE, documenti della famiglia, eventuali certificati di invalidità o sfratto (danno punti).', dove: 'Bando del Comune o dell’ente casa regionale (ATER, ALER, ACER…).', url: '' },
+      { t: 'Emergenza abitativa', s: 'Una sistemazione temporanea se resti senza casa.', chi: 'Famiglie e persone senza alloggio, con priorità a chi ha minori, anziani o persone fragili.', serve: 'Documenti e, se c’è, l’atto di sfratto.', dove: 'Servizi sociali del Comune.', url: '' }
     ],
-    passi: ['Fai l’ISEE: serve per quasi tutti i bandi.', 'Chiedi al segretariato sociale del Comune quali bandi sono aperti.', 'Se è arrivata una lettera di sfratto, parla subito con un sindacato degli inquilini (SUNIA, SICET, UNIAT).'], nota: '' },
-  { id: 'lavoro', t: 'Ho perso il lavoro', c: C.green, ic: IC.work, tag: 'lavoro',
-    intro: 'Ci sono sostegni economici e percorsi gratuiti per ritrovare lavoro. Alcuni hanno scadenze: muoviti presto.',
+    passi: ['Fai l’ISEE: serve per quasi tutti i bandi.', 'Chiedi al segretariato sociale del Comune quali bandi sono aperti.', 'Se è arrivata una lettera di sfratto, parla subito con un sindacato degli inquilini (SUNIA, SICET, UNIAT).', 'Prova a proporre al proprietario un piano di rientro per iscritto.'],
+    doc: ['Contratto d’affitto registrato', 'Ricevute dei pagamenti', 'ISEE', 'Eventuali lettere dell’avvocato o del tribunale'],
+    ask: ['Mi spetta un contributo per l’affitto?', 'Come si fa domanda per una casa popolare?', 'Il proprietario vuole sfrattarmi: cosa posso fare?'] },
+  { id: 'senzacasa', g: 'casa', t: 'Sono senza casa', c: C.rose, ic: IC.hands, tag: 'accoglienza',
+    intro: 'Anche senza casa hai diritti: puoi avere la residenza, il medico di base e l’aiuto dei servizi sociali. Ci sono posti dove mangiare e dormire gratis.',
     misure: [
-      { t: 'NASpI', s: 'L’indennità di disoccupazione per chi era dipendente e ha perso il lavoro senza volerlo. Va chiesta all’INPS entro 68 giorni dalla fine del lavoro.', url: 'https://www.inps.it' },
-      { t: 'Assegno di inclusione', s: 'Un sostegno per le famiglie con ISEE basso in cui ci sono minori, persone con disabilità, persone dai 60 anni in su o seguite dai servizi sociali.', url: 'https://www.inps.it' },
-      { t: 'Supporto per la formazione e il lavoro', s: 'Per chi ha tra 18 e 59 anni e un ISEE basso: un’indennità mensile mentre segui corsi o progetti per il lavoro.', url: 'https://www.inps.it' },
-      { t: 'Centro per l’impiego', s: 'Ti iscrivi come disoccupato, accedi a corsi gratuiti e all’orientamento.', url: '' }
+      { t: 'Mense e dormitori', s: 'Pasti caldi, docce, vestiti e posti letto gratuiti.', chi: 'Chiunque ne abbia bisogno.', serve: 'Spesso niente; per dormire a volte serve passare da un centro d’ascolto.', dove: 'Caritas, Comunità di Sant’Egidio, associazioni e servizi sociali. Guarda in «Luoghi».', url: '' },
+      { t: 'Residenza fittizia', s: 'Ogni Comune ha un indirizzo «virtuale» per chi non ha casa. Con la residenza puoi avere medico di base, documenti e aiuti.', chi: 'Chi vive in strada o senza dimora stabile in quel Comune.', serve: 'Un documento, se ce l’hai.', dove: 'Ufficio anagrafe o servizi sociali del Comune.', url: '' },
+      { t: 'Unità di strada', s: 'Operatori e volontari che girano di notte con coperte, pasti e ascolto, e possono trovarti un posto.', chi: 'Chi dorme fuori.', serve: 'Niente.', dove: 'Servizi sociali, Caritas o il numero per l’emergenza freddo del tuo Comune, quando c’è.', url: '' }
     ],
-    passi: ['Fai la domanda di NASpI all’INPS (online o con un patronato) entro 68 giorni.', 'Iscriviti al centro per l’impiego.', 'Fai l’ISEE e chiedi al patronato se hai diritto anche ad altri sostegni.'], nota: '' },
-  { id: 'figli', t: 'Aspetto un figlio o ho figli', c: C.rose, ic: IC.baby, tag: 'consultori',
+    passi: ['Vai a un centro d’ascolto (per esempio Caritas) o ai servizi sociali: ti indicano mense e posti letto.', 'Chiedi la residenza fittizia all’anagrafe: apre la strada al medico e agli aiuti.', 'Con la residenza puoi chiedere l’Assegno di inclusione con un patronato.', 'Se stai male chiama il 112.'],
+    doc: ['Documento d’identità, anche scaduto', 'Codice fiscale o tessera sanitaria'],
+    ask: ['Dove posso dormire stanotte?', 'Come si chiede la residenza fittizia?', 'Senza casa posso avere il medico di base?'] },
+  { id: 'figli', g: 'famiglia', t: 'Aspetto un figlio o ho figli', c: C.rose, ic: IC.baby, tag: 'consultori',
     intro: 'Dalla gravidanza in poi ci sono aiuti economici e servizi gratuiti per te e per i tuoi figli.',
     misure: [
-      { t: 'Assegno unico universale', s: 'Un assegno mensile per ogni figlio, dal settimo mese di gravidanza fino ai 21 anni (senza limite di età se il figlio ha una disabilità). L’importo dipende dall’ISEE.', url: 'https://www.inps.it' },
-      { t: 'Bonus asilo nido', s: 'Un rimborso per le rette del nido per i bambini sotto i 3 anni.', url: 'https://www.inps.it' },
-      { t: 'Assegno di maternità dei Comuni', s: 'Per le mamme che non hanno altre tutele di maternità e hanno un ISEE basso. Si chiede al Comune entro 6 mesi dalla nascita.', url: '' },
-      { t: 'Consultorio familiare', s: 'Visite in gravidanza, corso pre-parto, allattamento e sostegno dopo la nascita, gratis.', url: '' }
+      { t: 'Assegno unico universale', s: 'Un assegno mensile per ogni figlio. L’importo dipende dall’ISEE; senza ISEE si prende la cifra minima.', chi: 'Dal settimo mese di gravidanza fino ai 21 anni del figlio (senza limite di età se ha una disabilità).', serve: 'IBAN, codici fiscali dei figli, ISEE (consigliato).', dove: 'Sul sito INPS, con un patronato o al contact center INPS. Si fa una volta, poi si rinnova da solo.', url: INPS },
+      { t: 'Bonus asilo nido', s: 'Un rimborso per le rette del nido, o un aiuto per l’assistenza a casa per bambini con malattie gravi.', chi: 'Genitori di bambini sotto i 3 anni.', serve: 'Ricevute delle rette, ISEE.', dove: 'Sul sito INPS.', url: INPS },
+      { t: 'Assegno di maternità dei Comuni', s: 'Un assegno per le mamme che non hanno altre tutele di maternità.', chi: 'Mamme con ISEE basso senza indennità di maternità dal lavoro (o con una molto bassa).', serve: 'ISEE, documenti del bambino.', dove: 'Al Comune, entro 6 mesi dalla nascita.', url: '' },
+      { t: 'Consultorio familiare', s: 'Visite in gravidanza, corso pre-parto, allattamento, sostegno dopo la nascita e per la coppia. Gratis.', chi: 'Tutti, anche senza impegnativa.', serve: 'Tessera sanitaria.', dove: 'Consultorio dell’ASL del tuo quartiere.', url: '' },
+      { t: 'Congedi per i genitori', s: 'Maternità, paternità e congedo parentale per stare con i figli piccoli, in parte pagati.', chi: 'Genitori che lavorano, dipendenti e in alcuni casi autonomi.', serve: 'Certificato di gravidanza o di nascita.', dove: 'Sul sito INPS o con un patronato, avvisando il datore di lavoro.', url: INPS }
     ],
-    passi: ['Fai l’ISEE.', 'Chiedi l’Assegno unico all’INPS (online o con un patronato).', 'Prenota al consultorio per gravidanza e corso pre-parto.'], nota: '' },
-  { id: 'anziani', t: 'Ho più di 65 anni', c: C.teal, ic: IC.clock, tag: 'anziani',
+    passi: ['Fai l’ISEE.', 'Chiedi l’Assegno unico all’INPS (online o con un patronato).', 'Prenota al consultorio per la gravidanza e il corso pre-parto.', 'Se lavori, chiedi al patronato quali congedi ti spettano.'],
+    doc: ['Documenti e codici fiscali dei genitori', 'Codice fiscale del bambino', 'IBAN', 'ISEE'],
+    ask: ['Come si chiede l’Assegno unico?', 'Quanto dura il congedo di paternità?', 'Il consultorio è gratis anche senza medico?'] },
+  { id: 'genitore', g: 'famiglia', t: 'Mi sto separando o cresco i figli da solo', c: C.pink, ic: IC.people, tag: 'consultori',
+    intro: 'Una separazione è dura, ma ci sono servizi gratuiti per affrontarla e per proteggere i figli.',
+    misure: [
+      { t: 'Mediazione familiare', s: 'Un professionista neutrale aiuta i genitori ad accordarsi su figli, casa e spese, senza litigare in tribunale.', chi: 'Coppie che si separano, sposate o no.', serve: 'Niente: basta prenotare.', dove: 'Consultori familiari e centri per le famiglie, spesso gratis.', url: '' },
+      { t: 'Avvocato gratuito (gratuito patrocinio)', s: 'Lo Stato paga l’avvocato se hai un reddito basso.', chi: 'Chi ha un reddito sotto la soglia di legge.', serve: 'Dichiarazione dei redditi della famiglia, documento.', dove: 'Al Consiglio dell’ordine degli avvocati della tua città, o tramite un avvocato che aderisce.', url: 'https://www.giustizia.it' },
+      { t: 'Assegno unico per i figli', s: 'Spetta al genitore che vive con i figli, o diviso tra i due genitori.', chi: 'Tutti i genitori di figli sotto i 21 anni.', serve: 'ISEE, IBAN.', dove: 'INPS o patronato: va aggiornato se cambia la situazione.', url: INPS }
+    ],
+    passi: ['Parla con il consultorio: offre sostegno psicologico e mediazione.', 'Se ci sono violenza o minacce, rivolgiti a un centro antiviolenza o chiama il 1522.', 'Chiedi all’ordine degli avvocati se puoi avere il gratuito patrocinio.', 'Aggiorna l’Assegno unico e l’ISEE con la nuova famiglia.'],
+    doc: ['Documenti e redditi', 'Certificati dei figli'],
+    ask: ['Cos’è la mediazione familiare?', 'Posso avere un avvocato gratis?', 'L’assegno unico a chi spetta dopo la separazione?'] },
+  { id: 'disabilita', g: 'salute', t: 'Ho una disabilità', c: C.sky, ic: IC.access, tag: 'disabilita',
+    intro: 'Ci sono riconoscimenti che aprono la strada a sostegni economici, permessi e lavoro. Si chiedono con una sola domanda all’INPS.',
+    misure: [
+      { t: 'Invalidità civile', s: 'Riconosce la tua condizione con una percentuale. In base alla percentuale e al reddito può dare assegno o pensione, esenzione dai ticket, protesi e ausili.', chi: 'Persone con una malattia o una menomazione che riduce la capacità di lavorare o di fare le cose di tutti i giorni.', serve: 'Certificato medico introduttivo (lo manda il medico all’INPS), documenti sanitari.', dove: 'Domanda INPS online o, gratis, con un patronato; poi visita della commissione.', url: INPS },
+      { t: 'Indennità di accompagnamento', s: 'Un sostegno mensile per chi non è autonomo, senza limiti di reddito.', chi: 'Chi ha un’invalidità totale e non riesce a camminare senza aiuto o a fare da solo gli atti quotidiani.', serve: 'Si chiede insieme all’invalidità.', dove: 'INPS o patronato.', url: INPS },
+      { t: 'Indennità di frequenza', s: 'Un aiuto per bambini e ragazzi con disabilità che vanno a scuola, a terapie o a centri.', chi: 'Minorenni con difficoltà persistenti a svolgere le attività della loro età.', serve: 'Certificato medico e iscrizione a scuola o ai trattamenti.', dove: 'INPS o patronato.', url: INPS },
+      { t: 'Legge 104', s: 'Riconosce l’handicap. Se è grave dà diritto a 3 giorni di permesso retribuito al mese per te o per chi ti assiste, al congedo straordinario per il familiare e ad agevolazioni fiscali.', chi: 'Persone con disabilità e i loro familiari.', serve: 'Si chiede con la stessa domanda dell’invalidità.', dove: 'INPS o patronato.', url: INPS },
+      { t: 'Collocamento mirato (Legge 68)', s: 'Le aziende devono riservare posti di lavoro alle persone con disabilità.', chi: 'Chi ha un’invalidità civile sopra il 45% e vuole lavorare.', serve: 'Verbale di invalidità.', dove: 'Ufficio collocamento mirato del centro per l’impiego.', url: 'https://www.lavoro.gov.it' },
+      { t: 'Contrassegno per il parcheggio (CUDE)', s: 'Ti fa usare i posti riservati e le zone a traffico limitato.', chi: 'Persone con capacità di camminare molto ridotta o non vedenti.', serve: 'Certificato della ASL.', dove: 'Al Comune.', url: '' }
+    ],
+    passi: ['Il medico di base invia all’INPS il certificato medico introduttivo.', 'Fai la domanda all’INPS online o con un patronato: puoi chiedere invalidità e Legge 104 insieme.', 'Vai alla visita della commissione con tutti i documenti sanitari.', 'Con il verbale chiedi al patronato tutto quello che ti spetta.'],
+    doc: ['Certificato medico introduttivo (numero di protocollo)', 'Referti, cartelle cliniche, terapie', 'Documento e tessera sanitaria'],
+    nota: 'In alcune province è in prova la nuova procedura unica della riforma sulla disabilità: il patronato ti dice se vale anche per te.',
+    ask: ['Come si chiede l’invalidità civile?', 'Cosa mi dà la Legge 104?', 'Come funziona il collocamento mirato?'] },
+  { id: 'caregiver', g: 'salute', t: 'Mi prendo cura di un familiare', c: C.teal, ic: IC.hands, tag: 'sociali',
+    intro: 'Se assisti una persona cara non autosufficiente hai diritto a permessi, congedi e aiuti, e a un po’ di respiro per te.',
+    misure: [
+      { t: 'Permessi Legge 104', s: '3 giorni al mese di permesso retribuito per assistere il familiare.', chi: 'Lavoratori dipendenti che assistono un familiare con handicap grave riconosciuto.', serve: 'Verbale della Legge 104 del familiare.', dove: 'INPS o patronato, e lo comunichi al datore di lavoro.', url: INPS },
+      { t: 'Congedo straordinario', s: 'Fino a 2 anni retribuiti, anche frazionati, nell’arco della vita lavorativa.', chi: 'Familiari conviventi di una persona con handicap grave, secondo un ordine di priorità.', serve: 'Verbale della Legge 104, stato di famiglia.', dove: 'INPS o patronato.', url: INPS },
+      { t: 'Assistenza domiciliare e centri diurni', s: 'Operatori che vengono a casa o centri dove la persona passa la giornata: tu puoi lavorare o riposare.', chi: 'Persone anziane o con disabilità e le loro famiglie.', serve: 'ISEE e valutazione dei servizi.', dove: 'Servizi sociali del Comune o ASL (punto unico di accesso).', url: '' },
+      { t: 'Contributi per chi assiste', s: 'Molte Regioni danno contributi per i caregiver familiari o per pagare un’assistente.', chi: 'Dipende dalla Regione.', serve: 'ISEE, documenti sanitari.', dove: 'Servizi sociali o sito della tua Regione.', url: '' }
+    ],
+    passi: ['Fai riconoscere invalidità e Legge 104 del tuo familiare.', 'Chiedi al patronato permessi e congedo.', 'Chiedi ai servizi sociali una valutazione per l’assistenza a casa.', 'Cerca un gruppo di auto-aiuto per familiari: non sei solo.'],
+    doc: ['Verbale di invalidità e Legge 104', 'Stato di famiglia', 'ISEE'],
+    ask: ['Quali permessi ho per assistere mia madre?', 'Come funziona il congedo straordinario?', 'Esistono contributi per chi assiste un familiare?'] },
+  { id: 'cure', g: 'salute', t: 'Non riesco a pagare le cure', c: C.rose, ic: IC.heart, tag: 'consultori',
+    intro: 'Molte cure sono gratuite o con ticket ridotto se hai un reddito basso, una malattia cronica o un’invalidità.',
+    misure: [
+      { t: 'Esenzione dal ticket per reddito', s: 'Non paghi il ticket su visite ed esami.', chi: 'Bambini sotto i 6 anni e persone sopra i 65 con reddito familiare basso, disoccupati, chi ha l’assegno sociale o una pensione minima.', serve: 'Autocertificazione.', dove: 'ASL o medico di base.', url: 'https://www.salute.gov.it' },
+      { t: 'Esenzione per malattia o invalidità', s: 'Esenzione per le cure legate a malattie croniche e rare, o per invalidità.', chi: 'Chi ha una delle malattie dell’elenco o un’invalidità riconosciuta.', serve: 'Certificato dello specialista o verbale.', dove: 'ASL.', url: 'https://www.salute.gov.it' },
+      { t: 'Bonus psicologo', s: 'Un contributo per pagare le sedute di psicoterapia.', chi: 'Chi ha un ISEE fino a 50.000 euro; più è basso, più alto il contributo.', serve: 'ISEE, SPID o CIE.', dove: 'Sul sito INPS quando apre la domanda (di solito una volta all’anno).', url: INPS },
+      { t: 'Centro di salute mentale e consultorio', s: 'Psicologi e psichiatri del servizio pubblico, gratis o con ticket.', chi: 'Tutti.', serve: 'Tessera sanitaria; spesso non serve l’impegnativa.', dove: 'CSM e consultorio della tua ASL.', url: '' },
+      { t: 'Ambulatori solidali', s: 'Visite gratuite con medici volontari, anche per chi non ha la tessera sanitaria.', chi: 'Persone in difficoltà.', serve: 'Niente.', dove: 'Poliambulatori di associazioni (Caritas, Emergency e altre). Chiedi ai servizi sociali.', url: '' }
+    ],
+    passi: ['Chiedi al medico di base se puoi avere un’esenzione.', 'Fai l’ISEE: serve per il bonus psicologo e altri aiuti.', 'Per il supporto psicologico prova il consultorio o il CSM.', 'Se hai un’invalidità chiedi all’ASL l’esenzione collegata.'],
+    doc: ['Tessera sanitaria', 'Referti e certificati', 'ISEE'],
+    ask: ['Posso avere l’esenzione dal ticket?', 'Come funziona il bonus psicologo?', 'Dove trovo uno psicologo gratis?'] },
+  { id: 'dipendenze', g: 'salute', t: 'Alcol, droghe o gioco', c: C.violet, ic: IC.shield, tag: 'sociali',
+    intro: 'Chiedere aiuto per una dipendenza è un passo di coraggio. I servizi pubblici sono gratuiti e rispettano la tua riservatezza.',
+    misure: [
+      { t: 'SerD (Servizio per le dipendenze)', s: 'Medici, psicologi ed educatori per alcol, droghe, gioco d’azzardo e altre dipendenze. Gratis.', chi: 'Chiunque, anche familiari che vogliono capire come aiutare.', serve: 'Non serve l’impegnativa; puoi chiedere l’anonimato.', dove: 'SerD della tua ASL.', url: '' },
+      { t: 'Gruppi di auto-aiuto', s: 'Incontri con persone che vivono lo stesso problema, per sostenersi a vicenda.', chi: 'Chi ha una dipendenza e i suoi familiari.', serve: 'Niente.', dove: 'Associazioni come Alcolisti Anonimi, Club alcologici territoriali, Giocatori Anonimi.', url: '' }
+    ],
+    passi: ['Chiama o vai al SerD della tua ASL: puoi andare anche solo per parlare.', 'Coinvolgi una persona di cui ti fidi.', 'Se hai debiti per il gioco, guarda anche la sezione Tutele su debiti e usura.'],
+    doc: ['Tessera sanitaria (se non chiedi l’anonimato)'],
+    ask: ['Come funziona il SerD?', 'Mio figlio beve troppo, cosa posso fare?', 'Ho debiti per il gioco, chi mi aiuta?'] },
+  { id: 'ragazzi', g: 'eta', t: 'Ho meno di 18 anni', c: C.pink, ic: IC.young, tag: 'giovani',
+    intro: 'Anche da minorenne hai diritti e posti dove andare: per stare con gli altri, per parlare con qualcuno, per farti aiutare.',
+    misure: [
+      { t: 'Centri giovani e di aggregazione', s: 'Spazi gratuiti per stare con gli amici, suonare, studiare, fare laboratori, con educatori.', chi: 'Ragazze e ragazzi, di solito dai 14 anni.', serve: 'Niente: passa negli orari di apertura.', dove: 'Guarda in «Luoghi» o chiedi all’Informagiovani.', url: '' },
+      { t: 'Spazio giovani del consultorio', s: 'Puoi parlare di corpo, relazioni, sessualità e contraccezione con persone preparate, in modo riservato.', chi: 'Ragazze e ragazzi, anche minorenni.', serve: 'Tessera sanitaria.', dove: 'Consultorio della tua zona.', url: '' },
+      { t: 'Telefono Azzurro e 114', s: 'Puoi parlare con qualcuno se sei in difficoltà, a casa, a scuola o online.', chi: 'Bambini e ragazzi; anche i genitori.', serve: 'Niente.', dove: '19696 (anche in chat) e 114 per le emergenze.', url: 'https://azzurro.it' },
+      { t: 'Sport a basso costo', s: 'Palestre popolari, oratori e polisportive con quote piccole o gratis.', chi: 'Tutti.', serve: 'A volte un certificato medico per lo sport (dal tuo pediatra o medico).', dove: 'Guarda in «Luoghi» o in «Insieme».', url: '' }
+    ],
+    passi: ['Scegli un posto in «Insieme» e passaci con un amico.', 'Se qualcosa ti fa stare male, parlane con un adulto di cui ti fidi o chiama il 19696.', 'Se sei in pericolo adesso, chiama il 112 o il 114.'],
+    doc: [],
+    ask: ['Cosa posso fare nel tempo libero vicino a me?', 'Posso andare al consultorio senza i miei genitori?', 'Mi prendono in giro a scuola, cosa faccio?'] },
+  { id: 'giovani', g: 'eta', t: 'Ho tra 18 e 35 anni', c: C.pink, ic: IC.young, tag: 'giovani',
+    intro: 'Esperienze pagate, sconti, borse di studio e servizi per orientarti tra studio, lavoro e casa.',
+    misure: [
+      { t: 'Servizio civile universale', s: 'Un anno in un progetto utile (assistenza, ambiente, cultura, protezione civile) con un rimborso mensile.', chi: 'Chi ha tra 18 e 28 anni.', serve: 'SPID per la domanda.', dove: 'Sul sito del servizio civile quando esce il bando.', url: 'https://www.scelgoilserviziocivile.gov.it' },
+      { t: 'Borse di studio per l’università', s: 'Soldi, posto letto e mensa per studenti con ISEE basso.', chi: 'Studenti universitari che rispettano i requisiti di reddito e di merito.', serve: 'ISEE per prestazioni universitarie.', dove: 'Ente regionale per il diritto allo studio, con bando di solito in estate.', url: '' },
+      { t: 'Carta Giovani Nazionale', s: 'Sconti e agevolazioni su cultura, sport, viaggi.', chi: 'Chi ha tra 18 e 35 anni.', serve: 'App IO.', dove: 'Nell’app IO.', url: 'https://giovani2030.it' },
+      { t: 'Carte per chi compie 18 anni', s: 'La Carta della cultura Giovani e la Carta del merito danno un bonus per libri, musica, cinema e corsi.', chi: 'Chi compie 18 anni: la prima con ISEE basso, la seconda con il diploma con 100.', serve: 'SPID o CIE.', dove: 'Sul sito del Ministero della Cultura nell’anno dopo i 18 anni.', url: '' },
+      { t: 'Informagiovani', s: 'Sportelli gratuiti per lavoro, studio, viaggi e volontariato.', chi: 'Giovani.', serve: 'Niente.', dove: 'Nel tuo Comune.', url: '' }
+    ],
+    passi: ['Guarda i bandi del servizio civile quando escono.', 'Attiva la Carta Giovani nell’app IO.', 'Se studi all’università, controlla il bando di borse di studio della tua regione.', 'Passa all’Informagiovani della tua città.'],
+    doc: ['SPID o CIE', 'ISEE'],
+    ask: ['Come funziona il servizio civile?', 'Posso avere una borsa di studio per l’università?', 'Ci sono aiuti per i giovani che cercano casa?'] },
+  { id: 'anziani', g: 'eta', t: 'Ho più di 65 anni', c: C.teal, ic: IC.clock, tag: 'anziani',
     intro: 'Sostegni per chi ha un reddito basso, aiuto in casa e tanti luoghi dove non stare da soli.',
     misure: [
-      { t: 'Assegno sociale', s: 'Dai 67 anni, se hai un reddito basso o nullo e vivi in Italia da almeno 10 anni. Si chiede all’INPS.', url: 'https://www.inps.it' },
-      { t: 'Carta acquisti', s: 'Una carta per la spesa e le bollette per chi ha più di 65 anni (o figli sotto i 3) e un reddito molto basso. Si chiede agli uffici postali.', url: '' },
-      { t: 'Assistenza domiciliare', s: 'Aiuto in casa per l’igiene, la spesa e le cure. Si chiede ai servizi sociali del Comune o all’ASL.', url: '' },
-      { t: 'Centri anziani e Filo d’Argento', s: 'Attività e compagnia vicino a casa; al telefono il Filo d’Argento di Auser (800 995 988).', url: '' }
+      { t: 'Assegno sociale', s: 'Un sostegno mensile per chi ha un reddito basso o nullo.', chi: 'Dai 67 anni, se vivi in Italia da almeno 10 anni.', serve: 'Redditi tuoi e del coniuge.', dove: 'INPS online o patronato.', url: INPS },
+      { t: 'Carta acquisti', s: 'Una carta ricaricata ogni due mesi per spesa e bollette.', chi: 'Chi ha più di 65 anni (o figli sotto i 3 anni) e un reddito molto basso.', serve: 'ISEE, modulo.', dove: 'Uffici postali.', url: INPS },
+      { t: 'Prestazione universale', s: 'Un aiuto in più per pagare l’assistenza (badante o servizi) per le persone molto anziane e non autosufficienti. È in prova.', chi: 'Chi ha più di 80 anni, l’indennità di accompagnamento e un ISEE molto basso.', serve: 'ISEE socio-sanitario.', dove: 'INPS o patronato.', url: INPS },
+      { t: 'Assistenza domiciliare', s: 'Aiuto in casa per igiene, spesa, pasti e cure.', chi: 'Anziani non del tutto autonomi.', serve: 'ISEE e valutazione.', dove: 'Servizi sociali del Comune o ASL.', url: '' },
+      { t: 'Centri anziani e Filo d’Argento', s: 'Attività e compagnia vicino a casa; al telefono il Filo d’Argento di Auser (800 995 988).', chi: 'Tutti.', serve: 'Iscrizione, spesso gratuita.', dove: 'Guarda in «Luoghi» e in «Insieme».', url: '' }
     ],
-    passi: ['Fai l’ISEE o fatti aiutare da un CAF.', 'Chiedi al patronato se ti spetta l’assegno sociale.', 'Per l’aiuto in casa rivolgiti ai servizi sociali.'], nota: '' },
-  { id: 'bollette', t: 'Le bollette sono troppo care', c: C.violet, ic: IC.bolt, tag: 'patronati',
-    intro: 'Il bonus sociale abbassa luce, gas e acqua. Spesso arriva da solo, basta avere l’ISEE aggiornato.',
-    misure: [
-      { t: 'Bonus sociale luce, gas e acqua', s: 'Uno sconto in bolletta automatico se il tuo ISEE è sotto la soglia o se ricevi l’Assegno di inclusione. Devi solo rifare l’ISEE ogni anno.', url: 'https://www.arera.it' },
-      { t: 'Bonus per disagio fisico', s: 'Se in casa usi apparecchi medici elettrici (per esempio per respirare), hai uno sconto sulla luce. Si chiede al Comune o al CAF.', url: 'https://www.arera.it' }
-    ],
-    passi: ['Fai o aggiorna l’ISEE (gratis al CAF o online sul sito INPS).', 'Il bonus arriva in bolletta senza altre domande.'], nota: '' },
-  { id: 'giovani', t: 'Ho tra 18 e 35 anni', c: C.pink, ic: IC.young, tag: 'giovani',
-    intro: 'Esperienze pagate, sconti e servizi per orientarti tra studio e lavoro.',
-    misure: [
-      { t: 'Servizio civile universale', s: 'Un anno in un progetto utile (assistenza, ambiente, cultura) per chi ha tra 18 e 28 anni, con un rimborso mensile.', url: 'https://www.scelgoilserviziocivile.gov.it' },
-      { t: 'Carta Giovani Nazionale', s: 'Sconti e agevolazioni per chi ha tra 18 e 35 anni, nell’app IO.', url: 'https://giovani2030.it' },
-      { t: 'Informagiovani', s: 'Sportelli gratuiti per lavoro, studio, viaggi e volontariato.', url: '' }
-    ],
-    passi: ['Guarda i bandi del servizio civile quando escono.', 'Attiva la Carta Giovani nell’app IO.', 'Passa all’Informagiovani della tua città.'], nota: '' },
-  { id: 'violenza', t: 'Sto uscendo da una situazione di violenza', c: C.violet, ic: IC.shield, tag: 'antiviolenza',
+    passi: ['Fai l’ISEE o fatti aiutare da un CAF.', 'Chiedi al patronato se ti spetta l’assegno sociale o altri aiuti.', 'Per l’aiuto in casa rivolgiti ai servizi sociali.', 'Prova un centro anziani vicino: si fa amicizia in fretta.'],
+    doc: ['Documento e tessera sanitaria', 'Modello della pensione (ObisM o cedolino)', 'ISEE'],
+    ask: ['Mi spetta l’assegno sociale?', 'Come si chiede l’assistenza a casa?', 'Ci sono attività per anziani vicino a me?'] },
+  { id: 'violenza', g: 'difficili', t: 'Sto uscendo da una situazione di violenza', c: C.violet, ic: IC.shield, tag: 'antiviolenza',
     intro: 'Non sei sola. Ci sono persone formate che ti aiutano gratis e sostegni per ricominciare.',
     misure: [
-      { t: 'Centri antiviolenza e 1522', s: 'Ascolto, consulenza legale e psicologica gratuita, case rifugio. Il 1522 risponde 24 ore su 24.', url: 'https://www.1522.eu' },
-      { t: 'Reddito di libertà', s: 'Un contributo per le donne seguite da un centro antiviolenza, per aiutarle a diventare autonome. Si chiede tramite il Comune.', url: 'https://www.inps.it' },
-      { t: 'Congedo per le vittime di violenza', s: 'Le lavoratrici seguite da un centro antiviolenza o dai servizi sociali possono astenersi dal lavoro per 3 mesi, retribuiti.', url: 'https://www.inps.it' }
+      { t: 'Centri antiviolenza e 1522', s: 'Ascolto, consulenza legale e psicologica gratuita, case rifugio.', chi: 'Donne che subiscono violenza fisica, psicologica, economica o stalking, e i loro figli.', serve: 'Niente: puoi andare anche senza denunciare.', dove: 'Chiama il 1522 (24 ore su 24, anche in chat) o il centro più vicino.', url: 'https://www.1522.eu' },
+      { t: 'Reddito di libertà', s: 'Un contributo mensile per aiutarti a diventare autonoma.', chi: 'Donne seguite da un centro antiviolenza e dai servizi sociali.', serve: 'Dichiarazione del centro antiviolenza e dei servizi sociali.', dove: 'Tramite il Comune, che fa la domanda all’INPS.', url: INPS },
+      { t: 'Congedo per le vittime di violenza', s: 'Fino a 3 mesi di astensione dal lavoro, retribuiti.', chi: 'Lavoratrici inserite in un percorso di protezione.', serve: 'Certificazione del centro antiviolenza, dei servizi sociali o della casa rifugio.', dove: 'INPS e datore di lavoro.', url: INPS },
+      { t: 'Avvocato gratuito', s: 'Per le vittime di violenza domestica e stalking l’avvocato è pagato dallo Stato, a prescindere dal reddito.', chi: 'Vittime di maltrattamenti, violenza sessuale, stalking.', serve: 'Domanda al Consiglio dell’ordine degli avvocati.', dove: 'Il centro antiviolenza ti aiuta a farla.', url: 'https://www.giustizia.it' }
     ],
-    passi: ['Chiama il 1522 o contatta il centro antiviolenza più vicino.', 'Con loro decidi cosa fare, anche senza denunciare.', 'Se sei in pericolo adesso chiama il 112.'], nota: '' }
+    passi: ['Chiama il 1522 o contatta il centro antiviolenza più vicino.', 'Con loro decidi cosa fare, anche senza denunciare.', 'Conserva messaggi, foto e referti in un posto sicuro.', 'Se sei in pericolo adesso chiama il 112.'],
+    doc: ['Documenti tuoi e dei figli (se puoi)', 'Referti medici, messaggi, foto'],
+    ask: ['Come funziona un centro antiviolenza?', 'Cos’è il reddito di libertà?', 'Posso andare via di casa con i miei figli?'] },
+  { id: 'legale', g: 'difficili', t: 'Mi serve un avvocato o un consiglio legale', c: C.gray, ic: IC.doc, tag: 'patronati',
+    intro: 'Non serve essere ricchi per difendere i propri diritti: ci sono avvocati pagati dallo Stato e sportelli gratuiti.',
+    misure: [
+      { t: 'Gratuito patrocinio', s: 'Lo Stato paga l’avvocato nelle cause civili e penali.', chi: 'Chi ha un reddito sotto la soglia di legge; per le vittime di violenza domestica senza limiti di reddito.', serve: 'Dichiarazione dei redditi della famiglia.', dove: 'Consiglio dell’ordine degli avvocati (cause civili) o giudice (penali).', url: 'https://www.giustizia.it' },
+      { t: 'Sportelli legali gratuiti', s: 'Un primo consiglio gratuito su casa, lavoro, famiglia, debiti.', chi: 'Tutti.', serve: 'I documenti del problema.', dove: 'Comuni, sindacati, associazioni dei consumatori, università.', url: '' },
+      { t: 'Sindacati e patronati', s: 'Per problemi di lavoro (paga, licenziamento, contratti) e con l’INPS.', chi: 'Lavoratori e pensionati.', serve: 'Contratto, buste paga, lettere ricevute.', dove: 'Sedi dei sindacati e patronati.', url: '' }
+    ],
+    passi: ['Raccogli tutti i documenti e le lettere ricevute.', 'Chiedi un primo consiglio a uno sportello gratuito.', 'Se serve una causa, chiedi il gratuito patrocinio.'],
+    doc: ['Documento', 'Redditi', 'Lettere, contratti, messaggi'],
+    ask: ['Posso avere un avvocato gratis?', 'Il mio datore non mi paga: cosa faccio?', 'Ho ricevuto una lettera dal tribunale, cosa significa?'] }
 ];
 export const SIT = Object.fromEntries(SITUAZIONI.map(s => [s.id, s]));
 
-// «Scopri cosa ti spetta»: 5 domande → situazioni consigliate
+// ---------- «Scopri cosa ti spetta»: domande che cambiano in base alle risposte ----------
+// when: la domanda compare solo se serve; multi: si possono scegliere più risposte
+const giovane = r => r.eta === 'u18';
+const adulto = r => r.eta === '18' || r.eta === '30';
 export const QUIZ = [
-  { id: 'eta', q: 'Quanti anni hai?', a: [['u18', 'Meno di 18'], ['18', '18 – 35'], ['36', '36 – 64'], ['65', '65 o più']] },
-  { id: 'figli', q: 'Hai figli o ne aspetti uno?', a: [['si', 'Sì'], ['no', 'No']] },
-  { id: 'dis', q: 'Tu o qualcuno in famiglia avete una disabilità?', a: [['si', 'Sì'], ['no', 'No']] },
-  { id: 'lav', q: 'Come va con il lavoro?', a: [['ok', 'Lavoro'], ['perso', 'Ho perso il lavoro'], ['cerco', 'Lo sto cercando'], ['pens', 'Sono in pensione']] },
-  { id: 'casa', q: 'E con la casa?', a: [['ok', 'Tutto bene'], ['affitto', 'Faccio fatica con l’affitto'], ['senza', 'Rischio di restare senza casa']] }
+  { id: 'eta', q: 'Quanti anni hai?', sub: 'Così ti mostro solo quello che ti riguarda.', a: [['u18', 'Meno di 18'], ['18', '18 – 29'], ['30', '30 – 64'], ['65', '65 o più']] },
+  // ragazzi
+  { id: 'fun', when: giovane, multi: true, q: 'Cosa ti andrebbe di fare nel tempo libero?', sub: 'Puoi sceglierne più di una.', a: [['sport', 'Sport'], ['musica', 'Musica, arte, teatro'], ['amici', 'Conoscere persone nuove'], ['aiutare', 'Aiutare gli altri'], ['studio', 'Studiare in compagnia'], ['giochi', 'Giochi e videogiochi insieme']] },
+  { id: 'umore', when: giovane, q: 'Come va in questo periodo?', a: [['bene', 'Abbastanza bene'], ['giu', 'Mi sento giù o da solo'], ['bulli', 'Ho problemi con altri ragazzi o online'], ['casa', 'A casa ci sono problemi'], ['corpo', 'Ho dubbi su corpo, relazioni o sessualità']] },
+  // adulti
+  { id: 'lav', when: r => r.eta === '18', q: 'Cosa fai adesso?', a: [['studio', 'Studio'], ['lavoro', 'Lavoro'], ['cerco', 'Cerco lavoro'], ['perso', 'Ho perso il lavoro da poco'], ['niente', 'Né studio né lavoro']] },
+  { id: 'lav', when: r => r.eta === '30', q: 'Come va con il lavoro?', a: [['lavoro', 'Lavoro'], ['cerco', 'Cerco lavoro'], ['perso', 'Ho perso il lavoro da poco'], ['salute', 'Non posso lavorare per salute'], ['cura', 'Mi occupo di un familiare']] },
+  { id: 'soldi', when: r => r.eta !== 'u18', q: r => r.eta === '65' ? 'La pensione ti basta per le spese?' : 'Arrivi a fine mese?', a: [['ok', 'Sì, senza problemi'], ['fatica', 'A fatica'], ['no', 'No, non ce la faccio']] },
+  { id: 'casa', when: adulto, q: 'E con la casa?', a: r => [...(r.eta === '18' ? [['fam', 'Vivo con la mia famiglia']] : []), ['ok', 'Tutto bene'], ['affitto', 'Faccio fatica con affitto o mutuo'], ['rischio', 'Rischio di restare senza casa'], ['senza', 'Non ho una casa']] },
+  { id: 'figli', when: adulto, q: 'Hai figli o ne aspetti uno?', a: [['si', 'Sì'], ['solo', 'Sì, e li cresco da solo/a'], ['no', 'No']] },
+  // anziani
+  { id: 'vive', when: r => r.eta === '65', q: 'Vivi da solo o da sola?', a: [['si', 'Sì'], ['no', 'No']] },
+  { id: 'aiuto', when: r => r.eta === '65', q: 'Hai bisogno di aiuto nelle cose di tutti i giorni?', a: [['no', 'No, faccio da solo'], ['poco', 'Ogni tanto'], ['si', 'Sì, spesso']] },
+  // tutti
+  { id: 'dis', q: r => giovane(r) ? 'Tu o qualcuno in famiglia avete una disabilità?' : 'Tu o qualcuno che segui avete una disabilità?', a: [['me', 'Sì, io'], ['fam', 'Sì, un familiare'], ['no', 'No']] },
+  { id: 'insieme', when: r => !giovane(r), multi: true, q: 'Ti va di fare qualcosa con altre persone?', sub: 'Puoi sceglierne più di una.', a: [['sport', 'Sport o ginnastica'], ['cultura', 'Corsi, cultura, incontri'], ['aiutare', 'Volontariato'], ['compagnia', 'Solo un po’ di compagnia'], ['nulla', 'Per ora no']] },
+  { id: 'preoc', when: r => !giovane(r), multi: true, q: 'C’è qualcosa che ti preoccupa?', sub: 'Puoi sceglierne più di una. Resta solo sul tuo telefono.', a: [['violenza', 'Qualcuno mi controlla o mi fa paura'], ['debiti', 'Debiti o prestiti'], ['cure', 'Pagare medicine e visite'], ['dipendenze', 'Alcol, droghe o gioco'], ['nulla', 'Niente di questo']] }
 ];
+// domande che toccano a questa persona (cambiano con le risposte già date)
+export const quizSteps = r => QUIZ.filter(q => !q.when || q.when(r));
+export const qText = (q, r) => typeof q.q === 'function' ? q.q(r) : q.q;
+export const qOpts = (q, r) => typeof q.a === 'function' ? q.a(r) : q.a;
+
+// risultato: aiuti, attività per il tempo libero, luoghi utili, tutele e numeri
 export function quizResult(r) {
-  const out = new Set();
-  if (r.dis === 'si') out.add('disabilita');
-  if (r.casa && r.casa !== 'ok') out.add('casa');
-  if (r.lav === 'perso' || r.lav === 'cerco') out.add('lavoro');
-  if (r.figli === 'si') out.add('figli');
-  if (r.eta === '65' || r.lav === 'pens') out.add('anziani');
-  if (r.eta === '18') out.add('giovani');
-  out.add('bollette');
-  return [...out];
+  const sit = new Set(), fun = [], cats = new Set(), tut = new Set(), num = new Set();
+  const arr = v => Array.isArray(v) ? v : v ? [v] : [];
+  const F = (id, t, s, cat) => fun.push({ id, t, s, cat });
+  if (r.eta === 'u18') {
+    sit.add('ragazzi');
+    const f = arr(r.fun);
+    if (f.includes('sport')) { F('sport', 'Fai sport spendendo poco', 'Palestre popolari, oratori e polisportive: boxe, calcio, ginnastica a pochi euro o gratis.', 'palestre'); F('oratori', 'Campi e tornei all’oratorio', 'Calcetto, pallavolo e campi estivi aperti a tutti.', 'oratori'); }
+    if (f.includes('musica')) F('musica', 'Suona, disegna, fai teatro', 'Nei centri giovani ci sono sale prove e laboratori gratuiti.', 'giovani');
+    if (f.includes('amici') || f.includes('giochi')) F('amici', 'Conosci altri ragazzi', 'Centri di aggregazione e ludoteche: giochi, tornei, uscite con educatori.', 'giovani');
+    if (f.includes('aiutare')) F('aiutare', 'Dai una mano', 'Molte associazioni accolgono ragazzi dai 14-16 anni, anche solo per qualche ora.', 'volontariato');
+    if (f.includes('studio')) F('studio', 'Studia in compagnia', 'Doposcuola gratuiti in oratori, centri giovani e centri di quartiere.', 'quartiere');
+    if (!fun.length) F('amici', 'Scopri cosa c’è vicino', 'Centri giovani, oratori e sport popolare a due passi da te.', 'giovani');
+    if (r.umore === 'giu') { tut.add('solitudine'); num.add('n19696'); cats.add('consultori'); }
+    if (r.umore === 'bulli') { tut.add('bullismo'); num.add('n19696'); }
+    if (r.umore === 'casa') { num.add('n114'); num.add('n19696'); cats.add('consultori'); }
+    if (r.umore === 'corpo') cats.add('consultori');
+    cats.add('giovani');
+  } else {
+    if (r.eta === '18') sit.add('giovani');
+    if (r.eta === '65') { sit.add('anziani'); cats.add('anziani'); }
+    if (r.lav === 'perso' || r.lav === 'cerco' || r.lav === 'niente') { sit.add('lavoro'); cats.add('lavoro'); }
+    if (r.lav === 'cura') sit.add('caregiver');
+    if (r.lav === 'salute') sit.add('cure');
+    if (r.soldi === 'fatica' || r.soldi === 'no') { sit.add('reddito'); sit.add('bollette'); cats.add('sociali'); cats.add('patronati'); }
+    if (r.soldi === 'no') cats.add('accoglienza');
+    if (r.casa === 'affitto' || r.casa === 'rischio') { sit.add('casa'); cats.add('casa'); }
+    if (r.casa === 'rischio') tut.add('sfratto');
+    if (r.casa === 'senza') { sit.add('senzacasa'); cats.add('accoglienza'); }
+    if (r.figli === 'si' || r.figli === 'solo') { sit.add('figli'); cats.add('consultori'); }
+    if (r.figli === 'solo') sit.add('genitore');
+    if (r.vive === 'si') { tut.add('truffe'); num.add('argento'); }
+    if (r.aiuto === 'poco' || r.aiuto === 'si') { sit.add('caregiver'); cats.add('sociali'); }
+    const ins = arr(r.insieme);
+    if (ins.includes('sport')) F('sport', r.eta === '65' ? 'Ginnastica dolce e camminate' : 'Sport a prezzi popolari', r.eta === '65' ? 'Nei centri anziani e nelle polisportive ci sono corsi pensati per te.' : 'Palestre popolari e polisportive con quote basse.', r.eta === '65' ? 'anziani' : 'palestre');
+    if (ins.includes('cultura')) F('cultura', 'Corsi e incontri vicino a casa', 'Centri civici e di quartiere: lingue, computer, cinema, feste.', 'quartiere');
+    if (ins.includes('aiutare')) F('aiutare', 'Fai volontariato', 'Dare una mano fa bene anche a te: c’è posto per qualsiasi età.', 'volontariato');
+    if (ins.includes('compagnia')) { F('compagnia', 'Un po’ di compagnia', r.eta === '65' ? 'Centri anziani e Filo d’Argento: c’è sempre qualcuno con cui parlare.' : 'Centri di quartiere e associazioni: si conosce gente in fretta.', r.eta === '65' ? 'anziani' : 'quartiere'); tut.add('solitudine'); num.add(r.eta === '65' ? 'argento' : 'amico'); }
+    const pr = arr(r.preoc);
+    if (pr.includes('violenza')) { sit.add('violenza'); tut.add('coppia'); num.add('n1522'); cats.add('antiviolenza'); }
+    if (pr.includes('debiti')) { tut.add('debiti'); sit.add('legale'); }
+    if (pr.includes('cure')) sit.add('cure');
+    if (pr.includes('dipendenze')) sit.add('dipendenze');
+  }
+  if (r.dis === 'me' || r.dis === 'fam') { sit.add('disabilita'); cats.add('disabilita'); if (r.dis === 'fam' && r.eta !== 'u18') sit.add('caregiver'); }
+  if (!sit.size) sit.add('bollette');
+  return { sit: [...sit], fun, cats: [...cats], tut: [...tut], num: [...num] };
 }
 
 // ---------- tutele: situazioni di rischio ----------
