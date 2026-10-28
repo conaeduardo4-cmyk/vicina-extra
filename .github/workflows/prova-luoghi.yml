@@ -1,0 +1,11 @@
+# Prova la ricerca dei luoghi (OpenStreetMap) su alcune città italiane.
+name: Prova luoghi
+on: workflow_dispatch
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: node scripts/prova-luoghi.mjs | tee -a $GITHUB_STEP_SUMMARY
