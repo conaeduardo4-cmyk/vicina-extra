@@ -1,6 +1,6 @@
 # Compila Vicina Extra per Android e pubblica l'APK nelle Releases.
 # Avvio: Actions → "Compila Android" → Run workflow (oppure un tag v*).
-# Firma: se ci sono i secrets ANDROID_KEYSTORE_BASE64 e ANDROID_KEYSTORE_PASSWORD (facoltativo ANDROID_KEY_ALIAS)
+# Firma: stessi secrets di Vicina: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD (facoltativi ANDROID_KEY_ALIAS, predefinito «vicina», e ANDROID_KEY_PASSWORD)
 # l'APK è firmato sempre con la stessa chiave e gli aggiornamenti si installano sopra; senza, si pubblica l'APK di debug.
 name: Compila Android
 
@@ -66,14 +66,16 @@ jobs:
           KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk "out/VicinaExtra-$APP_VERSION-debug.apk"
           if [ -n "$KS" ] && [ -n "$KS_PASS" ]; then
             printf '%s' "$KS" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/k.jks"
             BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+            KP=KS_PASS; [ -n "$KEY_PASS" ] && KP=KEY_PASS   # stessa regola di Vicina: se la chiave non ha una password sua, usa quella del keystore
             "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/a.apk"
-            "$BT/apksigner" sign --ks "$RUNNER_TEMP/k.jks" --ks-pass env:KS_PASS --ks-key-alias "${KEY_ALIAS:-vicinaextra}" --key-pass env:KS_PASS --out out/VicinaExtra.apk "$RUNNER_TEMP/a.apk"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/k.jks" --ks-pass env:KS_PASS --ks-key-alias "${KEY_ALIAS:-vicina}" --key-pass "env:$KP" --out out/VicinaExtra.apk "$RUNNER_TEMP/a.apk"
             rm -f "$RUNNER_TEMP/k.jks"; echo "APK firmato" >> $GITHUB_STEP_SUMMARY
           else
             cp "out/VicinaExtra-$APP_VERSION-debug.apk" out/VicinaExtra.apk

@@ -27,7 +27,8 @@ GitHub → **Actions → Compila Android → Run workflow**. L'APK finisce nelle
 Per firmarlo sempre con la stessa chiave (così gli aggiornamenti si installano sopra) aggiungi in **Settings → Secrets and variables → Actions**:
 - `ANDROID_KEYSTORE_BASE64`: il file `.jks` in base64
 - `ANDROID_KEYSTORE_PASSWORD`: la password
-- `ANDROID_KEY_ALIAS`: l'alias (predefinito `vicinaextra`)
+- `ANDROID_KEY_ALIAS`: l’alias (predefinito `vicina`, come in Vicina)
+- `ANDROID_KEY_PASSWORD`: la password della chiave, se è diversa da quella del keystore
 
 Senza questi secrets viene pubblicato l'APK di debug.
 
