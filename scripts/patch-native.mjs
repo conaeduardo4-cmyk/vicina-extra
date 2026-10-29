@@ -17,6 +17,7 @@ if (fs.existsSync(man)) {
         <intent><action android:name="android.intent.action.DIAL" /></intent>
         <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="geo" /></intent>
         <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
+        <package android:name="it.vicina.app" />
     </queries>\n</manifest>`);
   fs.writeFileSync(man, s); log('permessi');
 

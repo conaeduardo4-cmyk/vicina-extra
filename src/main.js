@@ -8,13 +8,13 @@ import { askAI } from './ai.js';
 import { acc, shrink } from './account.js';
 
 const NATIVE = Capacitor.isNativePlatform();
-const VER = import.meta.env.VITE_APP_VERSION || '1.1.0';
+const VER = import.meta.env.VITE_APP_VERSION || '1.2.0';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const I = (n, c = '') => `<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const lsJ = (k, d) => { try { return JSON.parse(ls.get(k) || 'null') ?? d; } catch { return d; } };
-const sq = (c, ic, cls = '') => `<i class="sq ${cls}" style="background:${c[0]};color:${c[1]}"><svg class="i" viewBox="0 0 24 24"><path d="${ic}"/></svg></i>`;
+const sq = (c, ic, cls = '') => `<i class="sq ${cls}"><svg class="i" viewBox="0 0 24 24"><path d="${ic}"/></svg></i>`;
 const telHref = t => 'tel:' + String(t).replace(/[^\d+]/g, '');
 const one = p => p.one || CAT[p.cat].one;
 
@@ -114,24 +114,39 @@ function rHome() {
   const h = new Date().getHours(), saluto = h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const nome = acc.p?.name ? ', ' + acc.p.name : '';
   const res = quiz ? quizResult(quiz.r) : null;
+  const n = id => places ? places.filter(p => p.cat === id && p.d <= 6).length : null;
   $('#s-home').innerHTML = `
     <div class="glow violet"></div>
-    <header class="top">
-      <div class="fl"><p class="eyebrow">VICINA EXTRA</p><h1 class="hello">${esc(saluto + nome)}</h1></div>
+    <header class="brand"><i class="logo">${I('hands')}</i><span class="name">Vicina Extra</span>
       <button class="sqbtn" data-a="big" aria-label="Testo più grande" aria-pressed="${isBig()}"><span>Aa</span></button>
-      <button class="ask" data-a="ai"><i class="ai-logo">${I('chat')}</i><span>Chiedi</span></button>
-    </header>
-    <form class="search" data-f="home-q"><svg class="i"><use href="#i-search"/></svg><input id="h-q" type="search" placeholder="Affitto, consultorio, lavoro, compagnia…" autocomplete="off" enterkeyhint="search" aria-label="Cerca un servizio"></form>
-    <div class="chips pad">${PROF.map(([k, t]) => `<button class="${prof === k ? 'on' : ''}" data-a="prof" data-k="${k}">${t}</button>`).join('')}</div>
-    ${res ? `<button class="hero violet slim" data-a="quiz-res"><span class="deco"></span><span class="tag">PER TE</span><b>${res.sit.length === 1 ? '1 guida' : res.sit.length + ' guide'} e ${res.fun.length + res.cats.length} idee per te</b><span class="sub">Tocca per rivedere i risultati delle tue risposte.</span></button>`
-      : `<button class="hero violet" data-a="quiz"><span class="deco"></span><span class="tag">AIUTI E DIRITTI</span><b>Scopri cosa ti può spettare: rispondi a qualche domanda</b><span class="sub">Le domande cambiano in base a te. Niente dati personali.</span></button>`}
-    ${res && res.fun.length ? `<div class="sec"><h2>Per il tuo tempo libero</h2></div><div class="funrow">${res.fun.slice(0, 4).map(funCard).join('')}</div>` : ''}
+      <button class="ask" data-a="ai">${I('chat')}<span>Chiedi</span></button></header>
+    <h1 class="greet">${esc(saluto + nome)}</h1><p class="greet-sub">Servizi, aiuti e diritti vicino a te.</p>
+    <form class="search" data-f="home-q"><svg class="i"><use href="#i-search"/></svg><input id="h-q" type="search" placeholder="Affitto, consultorio, lavoro, ISEE…" autocomplete="off" enterkeyhint="search" aria-label="Cerca un servizio o un aiuto"></form>
+    ${res ? `<button class="qcard main" data-a="quiz-res">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Le tue risposte</b><span>${res.sit.length === 1 ? '1 guida' : res.sit.length + ' guide'} agli aiuti e ${res.fun.length + res.cats.length} idee scelte per te.</span><span class="go">Rivedi</span></span></button>`
+      : `<button class="qcard main" data-a="quiz">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Scopri cosa ti spetta</b><span>Poche domande, diverse in base alla tua età e situazione. Restano sul telefono.</span><span class="go">Inizia · 2 minuti</span></span></button>`}
+    ${res && res.fun.length ? `<div class="sec"><h2>Per il tuo tempo libero</h2></div><div class="funrow" style="margin-top:10px">${res.fun.slice(0, 3).map(funCard).join('')}</div>` : ''}
     <div class="sec"><h2>Vicino a te</h2><button class="link" data-a="tab" data-t="luoghi">Mappa</button></div>
-    <div class="catgrid">${PROF_CATS[prof].map(id => { const c = CAT[id]; return `<button class="cat" data-a="cat" data-k="${id}">${sq(c.c, c.ic)}<span>${esc(c.t)}</span></button>`; }).join('')}</div>
-    <button class="row card" data-a="insieme">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.people, 'lg')}<span class="fl"><b>Non sentirti solo</b><span>Luoghi e linee di ascolto per stare in compagnia</span></span>${I('chev', 'chev')}</button>
-    <p class="foot-note">In pericolo adesso? Chiama il <a href="tel:112">112</a> o usa l'SOS di Vicina.</p>`;
+    <div class="catgrid" style="margin-top:10px">${PROF_CATS[prof].map(id => { const c = CAT[id], k = n(id); return `<button class="cat" data-a="cat" data-k="${id}">${sq(c.c, c.ic)}<span>${esc(c.t)}${k != null ? `<small>${k ? k + ' vicino a te' : 'Vedi sulla mappa'}</small>` : ''}</span></button>`; }).join('')}</div>
+    <button class="row card" data-a="insieme">${sq(0, IC.people)}<span class="fl"><b>Non sentirti solo</b><span>Luoghi e linee di ascolto per stare in compagnia</span></span>${I('chev', 'chev')}</button>
+    ${otherApp()}
+    <p class="foot-note">In pericolo adesso? Chiama il <a href="tel:112">112</a> o apri Vicina.</p>`;
 }
-const funCard = f => { const c = CAT[f.cat]; return `<button class="fun" data-a="cat" data-k="${f.cat}" style="--c1:${c.c[1]};--c2:${c.c[2]}"><span class="deco"></span>${sq(['rgba(255,255,255,.2)', '#fff'], c.ic)}<b>${esc(f.t)}</b><span>${esc(f.s)}</span></button>`; };
+const funCard = f => { const c = CAT[f.cat]; return `<button class="fun" data-a="cat" data-k="${f.cat}">${sq(c.c, c.ic)}<span class="fl"><b>${esc(f.t)}</b><span>${esc(f.s)}</span></span>${I('chev', 'chev')}</button>`; };
+
+/* ---------- l'altra app: Vicina (SOS). Se è installata si apre, altrimenti il sito ---------- */
+const OTHER = { pkg: 'it.vicina.app', web: 'https://vicina.netlify.app', t: 'Vicina', s: 'SOS e aiuto in emergenza' };
+let otherInstalled = null;
+async function checkOther() {
+  if (!NATIVE) return false;
+  for (let i = 0; i < 20 && !Launcher; i++) await new Promise(r => setTimeout(r, 100));
+  try { otherInstalled = !!(await Launcher?.canOpenUrl({ url: OTHER.pkg }))?.value; } catch { otherInstalled = false; }
+  return otherInstalled;
+}
+const otherApp = () => `<button class="otherapp" data-a="other">${sq(0, IC.shield, 'red')}<span class="fl"><b>${OTHER.t}</b><span>${OTHER.s} · ${otherInstalled ? 'Apri l’app' : 'Scopri e scarica'}</span></span>${I('ext', 'ext')}</button>`;
+async function openOther() {
+  if (NATIVE && await checkOther()) { try { await Launcher.openUrl({ url: OTHER.pkg }); return; } catch { /* apre il sito */ } }
+  openUrl(OTHER.web);
+}
 
 /* ================= LUOGHI ================= */
 let mapApi = null, mapLoading = false, places = null, placesP = null, placesErr = false, mCat = '', mAcc = false, mQ = '';
@@ -188,8 +203,9 @@ function rList(loading) {
     $('#m-list').innerHTML = placesErr ? `<div class="empty">${sq(['rgba(255,181,71,.16)', '#FFB547'], IC.globe, 'lg')}<b>I luoghi non arrivano</b><span>Il servizio delle mappe è lento o non c’è connessione. Riprova tra poco.</span><button class="btn white" data-a="m-reload">Riprova</button></div>` : '';
     return;
   }
+  const far = list.length ? Math.max(1, Math.ceil(list[Math.min(list.length, 60) - 1].d || 1)) : 0;
   $('#m-list').innerHTML = list.length
-    ? `<div class="card list">${list.slice(0, 60).map(placeRow).join('')}</div>${list.length > 60 ? `<p class="muted small pad">Ne mostro 60 su ${list.length}: scegli una categoria per vedere gli altri.</p>` : ''}<p class="muted small pad">Dati di OpenStreetMap: orari e numeri possono cambiare, verifica prima di andare.</p>`
+    ? `<div class="m-count"><b>${list.length} ${list.length === 1 ? 'luogo' : 'luoghi'}</b><span>entro ${far} km</span></div><div class="card list" style="margin-top:10px">${list.slice(0, 60).map(placeRow).join('')}</div>${list.length > 60 ? `<p class="muted small pad">Ne mostro 60 su ${list.length}: scegli una categoria per vedere gli altri.</p>` : ''}<p class="muted small pad">Dati di OpenStreetMap: orari e numeri possono cambiare, verifica prima di andare.</p>`
     : `<div class="empty">${sq(['rgba(255,255,255,.08)', '#D4D4D8'], IC.search, 'lg')}<b>Nessun luogo trovato qui</b><span>Su OpenStreetMap non c’è ancora. I servizi sociali del tuo Comune conoscono tutti i servizi della zona.</span><button class="btn ghost" data-a="ai-q" data-q="Quali servizi ci sono vicino a me per: ${esc(mCat ? CAT[mCat].t : mQ || 'aiuto sociale')}?">${I('chat')}Chiedi all'assistente</button></div>`;
 }
 const placeRow = p => { const c = CAT[p.cat];
@@ -202,21 +218,20 @@ function openPlace(p) {
   const c = CAT[p.cat];
   const tags = [p.wheel === 'yes' ? 'Accessibile in carrozzina' : p.wheel === 'limited' ? 'Accesso in parte agevolato' : '', p.fee === 'no' ? 'Gratuito' : ''].filter(Boolean);
   $('#s-luogo').innerHTML = `
-    <div class="cover" style="--c1:${c.c[1]};--c2:${c.c[2]}"><span class="deco"></span>
-      <div class="cover-top"><button class="roundbtn dark" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span>
-        <button class="roundbtn dark${isSaved(p.id) ? ' on' : ''}" data-a="save" aria-label="${isSaved(p.id) ? 'Togli dai salvati' : 'Salva questo luogo'}" aria-pressed="${isSaved(p.id)}">${I('bookmark')}</button></div></div>
-    <div class="pl-id"><i class="pl-ic" style="background:${c.c[2]}"><svg class="i" viewBox="0 0 24 24"><path d="${c.ic}"/></svg></i>
-      <p class="eyebrow" style="color:${c.c[1]}">${esc(one(p).toUpperCase())}</p><h1 class="h1">${esc(p.name)}</h1>
-      <p class="muted">${esc([p.addr, p.d != null ? dist(p.d) + ' da te' : ''].filter(Boolean).join(' · '))}</p>
-      ${tags.length ? `<div class="tags">${tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}</div>
+    <div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span>
+      <button class="roundbtn${isSaved(p.id) ? ' on' : ''}" data-a="save" aria-label="${isSaved(p.id) ? 'Togli dai salvati' : 'Salva questo luogo'}" aria-pressed="${isSaved(p.id)}">${I('bookmark')}</button></div>
+    <div class="pl-head">${sq(0, c.ic, 'acc')}<div class="fl"><p class="eyebrow">${esc(one(p).toUpperCase())}</p><h1 class="h1">${esc(p.name)}</h1></div></div>
+    <p class="pl-meta">${esc([p.addr, p.d != null ? dist(p.d) + ' da te' : '', p.fee === 'no' ? 'Gratuito' : ''].filter(Boolean).join(' · '))}</p>
     <div class="acts3">
       ${p.phone ? `<a class="act white" href="${telHref(p.phone)}">${I('phone')}Chiama</a>` : `<button class="act white" data-a="ai-q" data-q="${esc('Come posso contattare ' + p.name + '?')}">${I('chat')}Contatti</button>`}
-      <button class="act" data-a="url" data-u="${esc(dirUrl(p))}">${I('nav')}Indicazioni</button>
-      ${p.web ? `<button class="act" data-a="url" data-u="${esc(/^https?:/.test(p.web) ? p.web : 'https://' + p.web)}">${I('globe')}Sito</button>` : `<button class="act" data-a="save">${I('bookmark')}${isSaved(p.id) ? 'Salvato' : 'Salva'}</button>`}
+      <button class="act" data-a="url" data-u="${esc(dirUrl(p))}">${I('nav')}Percorso</button>
+      ${p.web ? `<button class="act" data-a="url" data-u="${esc(/^https?:/.test(p.web) ? p.web : 'https://' + p.web)}">${I('globe')}Sito</button>` : `<button class="act" data-a="ai-q" data-q="${esc('Cosa fa un ' + one(p).toLowerCase() + ' e come ci si accede?')}">${I('chat')}Chiedi</button>`}
     </div>
-    <div class="label">Cosa puoi trovare qui</div>
-    <div class="card list">${c.what.map(w => `<div class="row sm"><i class="dot" style="background:${c.c[1]}"></i><span class="fl"><b>${esc(w)}</b></span></div>`).join('')}</div>
-    <div class="card note-card">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.clock)}<span>${p.hours ? `<b>Orari:</b> ${esc(hoursTxt(p.hours))}<br>` : ''}${esc(c.how)}</span></div>
+    ${(() => { const info = [p.hours ? [IC.clock, hoursTxt(p.hours), 'Orari indicati su OpenStreetMap'] : null, p.wheel ? [IC.access, p.wheel === 'yes' ? 'Accessibile in carrozzina' : p.wheel === 'limited' ? 'Accesso in parte agevolato' : 'Non accessibile in carrozzina', ''] : null, p.phone ? [IC.phone, p.phone, 'Telefono'] : null].filter(Boolean);
+      return info.length ? `<div class="label">Informazioni</div><div class="card list">${info.map(([ic, t, s2]) => `<div class="row">${sq(0, ic)}<span class="fl"><b>${esc(t)}</b>${s2 ? `<span>${esc(s2)}</span>` : ''}</span></div>`).join('')}</div>` : ''; })()}
+    <div class="label">Cosa trovi qui</div>
+    <div class="card list">${c.what.map(w => `<div class="row sm top">${I('check', 'ck')}<span class="fl"><span class="txt">${esc(w)}</span></span></div>`).join('')}</div>
+    <div class="card note-card">${sq(0, IC.info)}<span>${esc(c.how)}</span></div>
     ${p.desc ? `<p class="muted pad">${esc(p.desc)}</p>` : ''}
     ${aiBox(one(p), ['A cosa serve un posto come questo?', 'Cosa devo portare la prima volta?', 'È gratuito? Serve un appuntamento?'])}
     <p class="muted small pad">Indicazioni generali per questo tipo di servizio: ogni sede può offrire servizi diversi. Dati del luogo: OpenStreetMap.</p>`;
@@ -232,8 +247,8 @@ function rAiuti() {
   $('#s-aiuti').innerHTML = `
     <header class="pagehead"><p class="eyebrow v">AIUTI E DIRITTI</p><h1 class="title">Cosa ti spetta</h1><p class="lead">${SITUAZIONI.length} guide con gli aiuti spiegati semplice: a chi spettano, cosa serve e dove si chiedono.</p></header>
     <form class="search" data-f="aiuti-q"><svg class="i"><use href="#i-search"/></svg><input id="a-q" type="search" value="${esc(aQ)}" placeholder="NASpI, affitto, 104, bollette…" autocomplete="off" enterkeyhint="search" aria-label="Cerca tra gli aiuti"></form>
-    <button class="hero violet slim" data-a="${quiz ? 'quiz-res' : 'quiz'}"><span class="deco"></span><b>${quiz ? 'I tuoi risultati' : 'Non sai da dove partire?'}</b><span class="sub">${quiz ? 'Gli aiuti scelti in base alle tue risposte.' : 'Rispondi a qualche domanda e ti mostro gli aiuti adatti a te.'}</span></button>
-    <div class="card warn">${sq(['rgba(255,181,71,.2)', '#FFB547'], IC.doc, 'lg')}<span><b>Prima di tutto: l'ISEE.</b> Serve per quasi tutti gli aiuti. Lo fai gratis al CAF o online sul sito dell'INPS.</span><button class="link sm" data-a="ai-q" data-q="Come si fa l’ISEE e cosa serve?">Come si fa?</button></div>
+    <button class="qcard" data-a="${quiz ? 'quiz-res' : 'quiz'}">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>${quiz ? 'I tuoi risultati' : 'Non sai da dove partire?'}</b><span>${quiz ? 'Gli aiuti scelti in base alle tue risposte.' : 'Rispondi a qualche domanda e ti mostro gli aiuti adatti a te.'}</span></span>${I('chev', 'chev')}</button>
+    <div class="card warn">${sq(0, IC.doc, 'amber')}<span><b>Prima di tutto: l'ISEE.</b> Serve per quasi tutti gli aiuti. Lo fai gratis al CAF o online sul sito dell'INPS.</span><button class="link sm" data-a="ai-q" data-q="Come si fa l’ISEE e cosa serve?">Come si fa?</button></div>
     ${groups.length ? groups.map(([t, list]) => `<div class="label">${esc(t)}</div><div class="card list">${list.map(s => `<button class="row" data-a="sit" data-k="${s.id}">${sq(s.c, s.ic, 'lg')}<span class="fl"><b>${esc(s.t)}</b><span>${esc(s.misure.map(m => m.t).slice(0, 3).join(' · '))}</span></span>${I('chev', 'chev')}</button>`).join('')}</div>`).join('')
       : `<div class="empty"><b>Nessuna guida con «${esc(aQ)}»</b><span>Prova con altre parole o chiedilo all’assistente.</span><button class="btn ghost" data-a="ai-q" data-q="${esc(aQ)}">${I('chat')}Chiedi all’assistente</button></div>`}
     ${aiBox('gli aiuti e i diritti', ['Cosa mi spetta se ho un ISEE basso?', 'Cos’è un patronato e quanto costa?', 'Come faccio lo SPID?'], 'Non trovi la tua situazione?')}
@@ -351,7 +366,7 @@ async function rInsieme() {
     <div class="chips pad">${[['', 'Tutti'], ...INSIEME_CATS.map(id => [id, CAT[id].t])].map(([k, t]) => `<button class="${iCat === k ? 'on' : ''}" data-a="i-cat" data-k="${k}">${esc(t)}</button>`).join('')}</div>
     <div id="i-list"><p class="muted pad">Cerco intorno a te…</p></div>
     <div class="duo">
-      <button class="hero green mini" data-a="cat" data-k="volontariato"><span class="deco"></span>${I('hands')}<b>Fai volontariato</b></button>
+      <button class="tile" data-a="cat" data-k="volontariato">${I('hands')}<b>Fai volontariato</b></button>
       <a class="tile" href="${telHref(NUM.amico.tel)}">${I('chat')}<b>Parla con qualcuno adesso</b></a>
     </div>
     <div class="label">Linee di ascolto</div>
@@ -398,7 +413,7 @@ function rTu() {
     <div class="card list">
       ${meRow('insieme', 'heart', CL.green, 'Non sentirti solo')}
       ${meRow('nums', 'phone', CL.rose, 'Numeri utili')}
-      ${meRow('url', 'shield', CL.rose, 'Vicina, l’app per le emergenze', '', ' data-u="https://vicina.netlify.app"')}
+      <button class="row" data-a="other">${sq(0, IC.shield, 'red')}<span class="fl"><b>Vicina, SOS ed emergenze</b><span>${otherInstalled ? 'Apri l’app' : 'Scopri e scarica'}</span></span>${I('ext', 'ext')}</button>
       ${meRow('info', 'info', CL.gray, 'Privacy e informazioni')}
     </div>
     ${acc.user ? `<div class="card list"><button class="row" data-a="logout">${sq(CL.gray, IC.out)}<span class="fl"><b>Esci</b><span>${esc(acc.user.email || '')}</span></span></button></div>`
@@ -540,6 +555,7 @@ document.addEventListener('click', async e => {
       if (isSaved(p.id)) { saved = saved.filter(x => x.id !== p.id); toast('Tolto dai salvati'); } else { saved.unshift({ ...p }); toast('Salvato: lo trovi in Tu'); }
       saveSaved(); const sc = $('#s-luogo').scrollTop; openPlace(p); stack.pop(); $('#s-luogo').scrollTop = sc; break; }
     case 'url': openUrl(t.dataset.u); break;
+    case 'other': openOther(); break;
     case 'pos': { const p = await getPos(true); if (!p) toast('Posizione non disponibile: attivala nelle impostazioni del telefono'); else { $('#map-msg').hidden = true; if (cur === 'luoghi') openMap(); else R[cur]?.(); } break; }
     case 'insieme': rInsieme(); show('insieme'); break;
     case 'i-retry': placesP = null; rInsieme(); break;
@@ -644,4 +660,5 @@ document.addEventListener('input', e => { if (e.target.id === 'a-q') { clearTime
 rHome(); rAiuti(); rTutele();
 show('home', false);
 // i luoghi si cercano subito in sottofondo, così la mappa è pronta quando la apri
-if (pos) getPlaces(pos).catch(() => {});
+if (pos) getPlaces(pos).then(() => { if (cur === 'home') rHome(); }).catch(() => {});
+checkOther().then(() => { if (cur === 'home') rHome(); else if (cur === 'tu') rTu(); });

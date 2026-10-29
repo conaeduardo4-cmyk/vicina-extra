@@ -35,9 +35,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }
       - name: Dipendenze
-        run: npm install --no-audit --no-fund
-      - name: Controllo stile della mappa
-        run: npm install --no-save --no-audit --no-fund @maplibre/maplibre-gl-style-spec && node scripts/check-map-style.mjs
+        run: npm install --no-audit --no-fund --prefer-offline @maplibre/maplibre-gl-style-spec --no-save && node scripts/check-map-style.mjs
       - name: Interfaccia
         run: VITE_APP_VERSION="$APP_VERSION" npm run build
       - name: Progetto Android
@@ -50,11 +48,18 @@ jobs:
           npx capacitor-assets generate --android --iconBackgroundColor '#5B43F0' --iconBackgroundColorDark '#5B43F0' --splashBackgroundColor '#09090B' --splashBackgroundColorDark '#09090B' || echo "::warning::Icone non generate"
           run npx cap sync android
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"$APP_VERSION\"/" android/app/build.gradle
+      # cache di Gradle tra una compilazione e l'altra: la seconda volta è molto più veloce
+      - uses: gradle/actions/setup-gradle@v4
+        with: { cache-read-only: false }
       - name: Compila
         working-directory: android
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug assembleRelease > "$RUNNER_TEMP/g.log" 2>&1 || { cat "$RUNNER_TEMP/g.log"; echo "::error title=Gradle::$(grep -E 'error:|FAILURE|What went wrong' -A3 "$RUNNER_TEMP/g.log" | head -20 | tr '\n' ' ' | cut -c1-1500)"; exit 1; }
+          # solo quello che serve: con la chiave di firma la versione release, senza l'APK di debug
+          T=assembleDebug; [ -n "$KS" ] && T="assembleDebug assembleRelease"
+          ./gradlew $T --parallel --build-cache -Dorg.gradle.jvmargs=-Xmx4g -Dkotlin.daemon.jvm.options=-Xmx2g > "$RUNNER_TEMP/g.log" 2>&1 || { cat "$RUNNER_TEMP/g.log"; echo "::error title=Gradle::$(grep -E 'error:|FAILURE|What went wrong' -A3 "$RUNNER_TEMP/g.log" | head -20 | tr '\n' ' ' | cut -c1-1500)"; exit 1; }
           tail -5 "$RUNNER_TEMP/g.log"
       - name: Firma
         env:
