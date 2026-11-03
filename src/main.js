@@ -6,15 +6,17 @@ import { IC, CATS, CAT, INSIEME_CATS, NUM, SITUAZIONI, SIT, GRUPPI, quizSteps, q
 import { nearby, dist, dirUrl, hoursTxt } from './places.js';
 import { askAI } from './ai.js';
 import { acc, shrink } from './account.js';
+import { VICINA, installed, openVicina, installVicina, onLink, parseLink, fromVicina, saveFromVicina } from './sister.js';
+import { LETTERE, SCADENZE, daysLeft } from './strumenti.js';
 
 const NATIVE = Capacitor.isNativePlatform();
-const VER = import.meta.env.VITE_APP_VERSION || '1.2.0';
+const VER = import.meta.env.VITE_APP_VERSION || '1.3.0';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const I = (n, c = '') => `<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 const lsJ = (k, d) => { try { return JSON.parse(ls.get(k) || 'null') ?? d; } catch { return d; } };
-const sq = (c, ic, cls = '') => `<i class="sq ${cls}"><svg class="i" viewBox="0 0 24 24"><path d="${ic}"/></svg></i>`;
+const sq = (c, ic, cls = '') => `<i class="sq ${cls}${Array.isArray(c) ? ' tint' : ''}"${Array.isArray(c) ? ` style="background:${c[0]};color:${c[1]}"` : ''}><svg class="i" viewBox="0 0 24 24"><path d="${ic}"/></svg></i>`;
 const telHref = t => 'tel:' + String(t).replace(/[^\d+]/g, '');
 const one = p => p.one || CAT[p.cat].one;
 
@@ -110,6 +112,17 @@ function aiBox(topic, asks = [], title) {
 }
 
 /* ================= HOME ================= */
+// strumenti di uso immediato (in Home, come gli Strumenti di Vicina)
+const TOOLS = [
+  ['t-sos', IC.shield, ['#E5484D', '#fff'], 'SOS con Vicina', 'Avvisa la tua cerchia', 'red'],
+  ['t-exit', IC.out, ['rgba(255,181,71,.16)', '#FFB547'], 'Uscita rapida', 'Nasconde l’app in un tocco'],
+  ['t-near', IC.locate, ['rgba(96,165,250,.16)', '#93C5FD'], 'Il più vicino', 'Chiama o vai subito'],
+  ['t-talk', IC.phone, ['rgba(52,211,153,.15)', '#34D399'], 'Parla con qualcuno', 'Linee di ascolto gratuite'],
+  ['t-letters', IC.edit, ['rgba(156,140,255,.16)', '#B4A8FF'], 'Lettere pronte', 'Comune, bollette, affitto'],
+  ['t-dead', IC.clock, ['rgba(244,114,182,.16)', '#F9A8D4'], 'Scadenze', 'NASpI, ISEE, maternità']
+];
+const toolTile = ([a, ic, c, t, s2, cls]) => `<button class="tool${cls ? ' ' + cls : ''}" data-a="${a}">${sq(c, ic)}<span><b>${esc(t)}</b><small>${esc(s2)}</small></span></button>`;
+const dateStr = () => new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase());
 function rHome() {
   const h = new Date().getHours(), saluto = h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const nome = acc.p?.name ? ', ' + acc.p.name : '';
@@ -117,37 +130,39 @@ function rHome() {
   const n = id => places ? places.filter(p => p.cat === id && p.d <= 6).length : null;
   $('#s-home').innerHTML = `
     <div class="glow violet"></div>
-    <header class="brand"><i class="logo">${I('hands')}</i><span class="name">Vicina Extra</span>
+    <header class="h4x">
+      <button class="avx" data-a="tab" data-t="tu" aria-label="Il tuo profilo">${avatar(acc.p)}</button>
+      <div class="fl"><p class="h4x-date">${esc(dateStr())}</p><h1 class="h4x-name">${esc(saluto + nome)}</h1></div>
       <button class="sqbtn" data-a="big" aria-label="Testo più grande" aria-pressed="${isBig()}"><span>Aa</span></button>
-      <button class="ask" data-a="ai">${I('chat')}<span>Chiedi</span></button></header>
-    <h1 class="greet">${esc(saluto + nome)}</h1><p class="greet-sub">Servizi, aiuti e diritti vicino a te.</p>
+      <button class="ask" data-a="ai"><i class="ai-logo">${I('chat')}</i><span>Chiedi</span></button>
+    </header>
     <form class="search" data-f="home-q"><svg class="i"><use href="#i-search"/></svg><input id="h-q" type="search" placeholder="Affitto, consultorio, lavoro, ISEE…" autocomplete="off" enterkeyhint="search" aria-label="Cerca un servizio o un aiuto"></form>
     ${res ? `<button class="qcard main" data-a="quiz-res">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Le tue risposte</b><span>${res.sit.length === 1 ? '1 guida' : res.sit.length + ' guide'} agli aiuti e ${res.fun.length + res.cats.length} idee scelte per te.</span><span class="go">Rivedi</span></span></button>`
       : `<button class="qcard main" data-a="quiz">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Scopri cosa ti spetta</b><span>Poche domande, diverse in base alla tua età e situazione. Restano sul telefono.</span><span class="go">Inizia · 2 minuti</span></span></button>`}
+    <div class="sec"><h2>Strumenti</h2><button class="link" data-a="vicina">Con Vicina</button></div>
+    <div class="tools">${TOOLS.map(toolTile).join('')}</div>
     ${res && res.fun.length ? `<div class="sec"><h2>Per il tuo tempo libero</h2></div><div class="funrow" style="margin-top:10px">${res.fun.slice(0, 3).map(funCard).join('')}</div>` : ''}
-    <div class="sec"><h2>Vicino a te</h2><button class="link" data-a="tab" data-t="luoghi">Mappa</button></div>
+    <div class="sec"><h2>Vicino a te</h2><button class="link" data-a="tab" data-t="luoghi">Apri la mappa</button></div>
     <div class="catgrid" style="margin-top:10px">${PROF_CATS[prof].map(id => { const c = CAT[id], k = n(id); return `<button class="cat" data-a="cat" data-k="${id}">${sq(c.c, c.ic)}<span>${esc(c.t)}${k != null ? `<small>${k ? k + ' vicino a te' : 'Vedi sulla mappa'}</small>` : ''}</span></button>`; }).join('')}</div>
-    <button class="row card" data-a="insieme">${sq(0, IC.people)}<span class="fl"><b>Non sentirti solo</b><span>Luoghi e linee di ascolto per stare in compagnia</span></span>${I('chev', 'chev')}</button>
+    <button class="row card" data-a="insieme">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.people)}<span class="fl"><b>Non sentirti solo</b><span>Luoghi e linee di ascolto per stare in compagnia</span></span>${I('chev', 'chev')}</button>
     ${otherApp()}
     <p class="foot-note">In pericolo adesso? Chiama il <a href="tel:112">112</a> o apri Vicina.</p>`;
 }
 const funCard = f => { const c = CAT[f.cat]; return `<button class="fun" data-a="cat" data-k="${f.cat}">${sq(c.c, c.ic)}<span class="fl"><b>${esc(f.t)}</b><span>${esc(f.s)}</span></span>${I('chev', 'chev')}</button>`; };
 
-/* ---------- l'altra app: Vicina (SOS). Se è installata si apre, altrimenti il sito ---------- */
-const OTHER = { pkg: 'it.vicina.app', web: 'https://vicina.netlify.app', t: 'Vicina', s: 'SOS e aiuto in emergenza' };
+/* ---------- l'altra app: Vicina (SOS). Le due app si aprono a vicenda e si passano le informazioni ---------- */
 let otherInstalled = null;
-async function checkOther() {
-  if (!NATIVE) return false;
-  for (let i = 0; i < 20 && !Launcher; i++) await new Promise(r => setTimeout(r, 100));
-  try { otherInstalled = !!(await Launcher?.canOpenUrl({ url: OTHER.pkg }))?.value; } catch { otherInstalled = false; }
-  return otherInstalled;
+async function checkOther() { otherInstalled = await installed(); return otherInstalled; }
+const otherApp = () => `<button class="otherapp" data-a="vicina">${sq(['#E5484D', '#fff'], IC.shield)}<span class="fl"><b>Vicina</b><span>SOS e aiuto in emergenza · ${otherInstalled ? 'Collegata' : 'Scopri come funziona'}</span></span>${I('chev', 'chev')}</button>`;
+// quello che passiamo a Vicina quando la apriamo: le guide scelte per te e i luoghi salvati
+const forVicina = () => {
+  const r = quiz ? quizResult(quiz.r) : null;
+  return { app: 'extra', v: 1, sit: (r?.sit || []).slice(0, 6).map(id => [id, SIT[id].t]), saved: saved.length, at: Date.now() };
+};
+async function goVicina(path = 'extra') {
+  if (NATIVE && await checkOther() && await openVicina(path, forVicina())) return true;
+  return false;
 }
-const otherApp = () => `<button class="otherapp" data-a="other">${sq(0, IC.shield, 'red')}<span class="fl"><b>${OTHER.t}</b><span>${OTHER.s} · ${otherInstalled ? 'Apri l’app' : 'Scopri e scarica'}</span></span>${I('ext', 'ext')}</button>`;
-async function openOther() {
-  if (NATIVE && await checkOther()) { try { await Launcher.openUrl({ url: OTHER.pkg }); return; } catch { /* apre il sito */ } }
-  openUrl(OTHER.web);
-}
-
 /* ================= LUOGHI ================= */
 let mapApi = null, mapLoading = false, places = null, placesP = null, placesErr = false, mCat = '', mAcc = false, mQ = '';
 async function openMap() {
@@ -413,7 +428,7 @@ function rTu() {
     <div class="card list">
       ${meRow('insieme', 'heart', CL.green, 'Non sentirti solo')}
       ${meRow('nums', 'phone', CL.rose, 'Numeri utili')}
-      <button class="row" data-a="other">${sq(0, IC.shield, 'red')}<span class="fl"><b>Vicina, SOS ed emergenze</b><span>${otherInstalled ? 'Apri l’app' : 'Scopri e scarica'}</span></span>${I('ext', 'ext')}</button>
+      <button class="row" data-a="vicina">${sq(['#E5484D', '#fff'], IC.shield)}<span class="fl"><b>Vicina, SOS ed emergenze</b><span>${otherInstalled ? 'Collegata · apri' : 'Scopri e installa'}</span></span>${I('chev', 'chev')}</button>
       ${meRow('info', 'info', CL.gray, 'Privacy e informazioni')}
     </div>
     ${acc.user ? `<div class="card list"><button class="row" data-a="logout">${sq(CL.gray, IC.out)}<span class="fl"><b>Esci</b><span>${esc(acc.user.email || '')}</span></span></button></div>`
@@ -483,6 +498,143 @@ acc.onChange(u => {
   else if (cur === 'home') rHome();
 });
 
+/* ================= VICINA: come funziona, installa, apri ================= */
+const SHOTS = ['home', 'sos', 'tools', 'circle'].map(n => `altra/vicina-${n}.webp`);
+function phone(shots, accent) {
+  return `<div class="phone" style="--acc2:${accent}" aria-hidden="true"><div class="ph-screen">${shots.map((u, i) => `<img src="${u}" alt="" style="--i:${i};--n:${shots.length}" loading="lazy">`).join('')}</div><span class="ph-notch"></span></div>`;
+}
+function rVicina() {
+  const v = fromVicina(), inst = otherInstalled;
+  const ago = v?.got ? new Date(v.got).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '';
+  $('#s-vicina').innerHTML = `
+    <div class="glow" style="--g:#E5484D"></div>
+    <div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span><span class="chip-st${inst ? ' ok' : ''}">${inst ? 'Installata' : NATIVE ? 'Non installata' : 'App per Android'}</span></div>
+    <div class="sis-hero">
+      <div class="sis-txt"><p class="eyebrow">L’APP SORELLA</p><h1 class="title">Vicina</h1><p class="lead">Se sei in pericolo, tieni premuto un tasto: le persone di cui ti fidi ricevono subito dove sei e due foto.</p></div>
+      ${phone(SHOTS, '#E5484D')}
+    </div>
+    <div class="acts-main">${inst ? `<button class="btn red" data-a="v-open">${I('shield')}Apri Vicina</button>` : `<button class="btn red" data-a="v-install" id="v-inst">${I('down')}${NATIVE ? 'Installa Vicina' : 'Scarica Vicina'}</button>`}</div>
+    ${v ? `<div class="card sync">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.check)}<span class="fl"><b>Collegata${ago ? ' · ' + esc(ago) : ''}</b><span>${[v.ready != null ? `Pronta per un’emergenza: ${v.ready}/${v.total || 5}` : '', v.circle != null ? `${v.circle} ${v.circle === 1 ? 'persona' : 'persone'} nella cerchia` : ''].filter(Boolean).join(' · ') || 'Le due app si sono scambiate le informazioni.'}</span></span></div>` : ''}
+    <div class="label">Come funziona</div>
+    <div class="steps">${[
+      ['hold', 'Tieni premuto l’SOS', 'Basta un secondo e mezzo. Parte anche dal widget o scuotendo il telefono.'],
+      ['send', 'La tua cerchia lo sa subito', 'Ricevono la tua posizione in tempo reale e due foto. Chi non ha l’app riceve un SMS.'],
+      ['walk', 'Ti raggiungono o chiamano', 'Vedono dove sei sulla mappa e possono avvisare il 112.'],
+      ['ok', 'Sono al sicuro', 'Quando è finita lo dici con un tocco e tutti si tranquillizzano.']
+    ].map(([k, t2, s2], i) => `<div class="step" style="--d:${i}"><i class="st-ic st-${k}">${I(k === 'hold' ? 'shield' : k === 'send' ? 'send' : k === 'walk' ? 'pin' : 'check')}</i><span class="fl"><b>${i + 1}. ${t2}</b><span>${s2}</span></span></div>`).join('')}</div>
+    <div class="label">Vicina e Vicina Extra insieme</div>
+    <div class="card list">
+      <div class="row">${sq(['rgba(255,107,120,.16)', '#FF8A94'], IC.shield)}<span class="fl"><b>SOS da qui</b><span>Lo strumento «SOS con Vicina» fa partire l’allarme di Vicina.</span></span></div>
+      <div class="row">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.pin)}<span class="fl"><b>Da Vicina ai servizi</b><span>Da Vicina apri subito centri antiviolenza, servizi sociali e aiuti in Vicina Extra.</span></span></div>
+      <div class="row">${sq(['rgba(96,165,250,.16)', '#93C5FD'], IC.sparkle)}<span class="fl"><b>Si scambiano le informazioni</b><span>Quando passi da un’app all’altra: le guide scelte per te, i luoghi salvati, se sei pronta per un’emergenza.</span></span></div>
+      <div class="row">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.user)}<span class="fl"><b>Stesso account</b><span>Nome, foto e banner sono gli stessi nelle due app.</span></span></div>
+    </div>
+    <p class="muted small pad center">Vicina non sostituisce il 112. L’APK arriva dalle release ufficiali su GitHub.</p>`;
+}
+async function doInstall(btn) {
+  if (!NATIVE) { openUrl(VICINA.web); return; }
+  const lab = btn.innerHTML; btn.disabled = true;
+  try {
+    const r = await installVicina(p => { btn.textContent = `Scarico Vicina… ${p}%`; });
+    if (r === 'settings') toast('Consenti a Vicina Extra di installare app, poi tocca di nuovo «Installa»');
+  } catch (e) { toast(e.message || 'Download non riuscito, riprova'); }
+  finally { btn.disabled = false; btn.innerHTML = lab; }
+}
+
+/* ---------- strumenti ---------- */
+async function toolSos() {
+  if (NATIVE && await checkOther()) { if (await openVicina('sos', forVicina())) return; }
+  sheet(`<h2>SOS</h2><p class="sub">${NATIVE ? 'Per avvisare la tua cerchia serve Vicina. Intanto, se sei in pericolo, chiama il 112.' : 'In pericolo adesso? Chiama il 112.'}</p>
+    <button class="btn red" data-a="sos112">${I('phone')}Chiama il 112</button>
+    <button class="btn ghost" data-a="vicina">${I('shield')}Scopri e installa Vicina</button>`);
+}
+// uscita rapida: copre l'app con una pagina neutra e la chiude. Al ritorno riparte dalla Home.
+let exited = false;
+function quickExit() {
+  exited = true;
+  try { speechSynthesis.cancel(); } catch { /* */ }
+  stack = []; chat = null; closeSheet();
+  $('#cover').hidden = false;
+  if (NATIVE) import('@capacitor/app').then(m => m.App.minimizeApp()).catch(() => {});
+}
+function leaveCover() { if (!exited) return; exited = false; $('#cover').hidden = true; tab('home'); }
+$('#cover').addEventListener('dblclick', leaveCover);
+if (NATIVE) import('@capacitor/app').then(m => m.App.addListener('resume', () => setTimeout(leaveCover, 400))).catch(() => {});
+
+const NEAR = ['sociali', 'comune', 'consultori', 'antiviolenza', 'patronati', 'accoglienza', 'lavoro', 'anziani'];
+async function nearSheet(cat) {
+  const me = await getPos();
+  if (!me) { sheet(`<h2>Il più vicino</h2><p class="sub">Attiva la posizione per trovare il servizio più vicino.</p><button class="btn white" data-a="pos">Attiva posizione</button>`); return; }
+  const chips = `<div class="chips">${NEAR.map(id => `<button class="${cat === id ? 'on' : ''}" data-a="near-cat" data-k="${id}">${esc(CAT[id].t)}</button>`).join('')}</div>`;
+  if (!cat) { sheet(`<h2>Il più vicino</h2><p class="sub">Scegli cosa ti serve: ti mostro il posto più vicino, con telefono e percorso.</p>${chips}`); return; }
+  sheet(`<h2>${esc(CAT[cat].t)}</h2><p class="sub">Cerco il più vicino…</p>${chips}`);
+  try { if (!places) await getPlaces(me); } catch { /* sotto */ }
+  const p = (places || []).filter(x => x.cat === cat).sort((a, b) => a.d - b.d)[0];
+  if (!$('#sheet').classList.contains('on')) return;
+  $('#sheet-body').innerHTML = `<h2>${esc(CAT[cat].t)}</h2>${chips}` + (p ? `
+    <div class="card near">${sq(CAT[cat].c, CAT[cat].ic)}<span class="fl"><b>${esc(p.name)}</b><span>${esc([one(p), dist(p.d), p.addr].filter(Boolean).join(' · '))}</span></span></div>
+    <div class="acts2">${p.phone ? `<a class="btn white" href="${telHref(p.phone)}">${I('phone')}Chiama</a>` : `<button class="btn white" data-a="place" data-id="${esc(p.id)}">${I('info')}Scheda</button>`}<button class="btn ghost" data-a="url" data-u="${esc(dirUrl(p))}">${I('nav')}Percorso</button></div>`
+    : `<p class="sub">Qui intorno non ne trovo. Chiedi ai servizi sociali del Comune.</p>`);
+}
+function talkSheet() {
+  sheet(`<h2>Parla con qualcuno</h2><p class="sub">Linee gratuite, persone pronte ad ascoltarti. In pericolo: 112.</p><div class="card list">${['amico', 'samaritans', 'argento', 'n19696', 'n1522'].map(k => { const n = NUM[k]; return `<a class="row" href="${telHref(n.tel)}">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.phone)}<span class="fl"><b>${esc(n.t)}</b><span>${esc(n.s)}</span></span>${I('chev', 'chev')}</a>`; }).join('')}</div>`);
+}
+// lettere pronte
+let curLetter = null;
+function rLetters() {
+  $('#s-letters').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Lettere pronte</h1></div>
+    <p class="lead pad">Modelli da completare con i tuoi dati. Poi li copi, li mandi per email o li condividi. Restano sul telefono.</p>
+    <div class="card list" style="margin-top:14px">${LETTERE.map(l => `<button class="row" data-a="letter" data-k="${l.id}">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.doc)}<span class="fl"><b>${esc(l.t)}</b><span>${esc(l.s)}</span></span>${I('chev', 'chev')}</button>`).join('')}</div>
+    <p class="muted small pad">Sono modelli generici: rileggili e adattali. Per questioni legali chiedi a un patronato, a un sindacato o a un avvocato.</p>`;
+}
+const letterVals = () => lsJ('lettere:dati', {});
+function letterText(l, v) { return l.testo.replace(/\{(\w+)\}/g, (_, k) => k === 'data' ? new Date().toLocaleDateString('it-IT') : (v[k] || `[${(l.campi[k] || k).toLowerCase()}]`)); }
+function rLetter(id) {
+  const l = LETTERE.find(x => x.id === id); curLetter = l; const v = letterVals();
+  if (!v.nome && acc.p) v.nome = acc.p.name + ' ' + acc.p.surname;
+  $('#s-letter').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">${esc(l.t)}</h1></div>
+    <form class="form" data-f="letter">${Object.entries(l.campi).map(([k, lab]) => `<label class="field"><span>${esc(lab)}</span>${k === 'motivo' || k === 'bisogno' ? `<textarea data-k="${k}" rows="3">${esc(v[k] || '')}</textarea>` : `<input data-k="${k}" value="${esc(v[k] || '')}">`}</label>`).join('')}</form>
+    <div class="label">Anteprima</div>
+    <pre class="card letter" id="l-prev">${esc(letterText(l, v))}</pre>
+    <div class="acts3"><button class="act white" data-a="l-copy">${I('doc')}Copia</button><button class="act" data-a="l-mail">${I('send')}Email</button><button class="act" data-a="l-share">${I('ext')}Condividi</button></div>`;
+}
+async function letterOut(how) {
+  const l = curLetter; if (!l) return; const txt = letterText(l, letterVals());
+  if (how === 'mail') { openUrl(`mailto:?subject=${encodeURIComponent(l.oggetto)}&body=${encodeURIComponent(txt)}`); return; }
+  if (how === 'share') {
+    try { if (NATIVE) { const { Share } = await import('@capacitor/share'); await Share.share({ title: l.oggetto, text: txt, dialogTitle: l.t }); return; } if (navigator.share) { await navigator.share({ title: l.oggetto, text: txt }); return; } } catch (e) { if (/cancel/i.test(String(e?.message))) return; }
+  }
+  try { await navigator.clipboard.writeText(txt); toast('Lettera copiata'); } catch { toast('Copia non riuscita: seleziona il testo dall’anteprima'); }
+}
+// scadenze
+function rDead() {
+  const list = lsJ('scadenze', []).sort((a, b) => a.due - b.due);
+  $('#s-dead').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Scadenze</h1></div>
+    <p class="lead pad">Inserisci una data e ti dico entro quando fare la domanda. Le scadenze restano sul telefono.</p>
+    ${list.length ? `<div class="label">Le tue scadenze</div><div class="card list">${list.map(x => { const d = daysLeft(x.due), sc = SCADENZE.find(y => y.id === x.id); return `<div class="row">${sq(d < 0 ? ['rgba(255,255,255,.08)', '#8C95A5'] : d <= 14 ? ['rgba(255,107,120,.16)', '#FF8A94'] : ['rgba(52,211,153,.15)', '#34D399'], IC.clock)}<span class="fl"><b>${esc(sc?.t || '')}</b><span>${d < 0 ? 'Scaduta il ' : 'Entro il '}${new Date(x.due).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}${d >= 0 ? ` · ${d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra ' + d + ' giorni'}` : ''}</span></span><button class="roundbtn sm" data-a="d-del" data-at="${x.at}" aria-label="Togli">${I('x')}</button></div>`; }).join('')}</div>` : ''}
+    <div class="label">Calcola</div>
+    <div class="stack">${SCADENZE.map(sc => `<form class="card dead" data-f="dead" data-k="${sc.id}"><b>${esc(sc.t)}</b><span class="muted">${esc(sc.s)}</span>
+      <label class="field"><span>${esc(sc.q)}</span><input type="date" required max="${new Date().toISOString().slice(0, 10)}"></label>
+      <div class="acts2"><button class="btn white" type="submit">Calcola e salva</button><button class="btn ghost" type="button" data-a="sit" data-k="${sc.sit}">La guida</button></div></form>`).join('')}</div>`;
+}
+
+/* ================= link da Vicina ================= */
+onLink(url => {
+  const L = parseLink(url); if (!L) return;
+  if (L.data && L.data.app === 'vicina') saveFromVicina(L.data);
+  stack = [];
+  switch (L.route) {
+    case 'luoghi': mCat = CAT[L.arg] ? L.arg : ''; mQ = ''; show('luoghi', false); break;
+    case 'aiuto': if (SIT[L.arg]) { tab('aiuti'); openSit(L.arg); } else tab('aiuti'); break;
+    case 'tutela': if (TUT[L.arg]) { tab('tutele'); openTut(L.arg); } else tab('tutele'); break;
+    case 'domande': qz = { i: 0, r: {}, sel: [] }; tab('home'); rQuiz(); show('quiz'); break;
+    case 'ai': tab('home'); openAI(null, L.q.get('q') || ''); break;
+    case 'vicina': checkOther().then(() => { tab('home'); rVicina(); show('vicina'); }); break;
+    default: tab('home');
+  }
+  if (L.data) toast('Collegata a Vicina');
+});
+
 /* ================= ASSISTENTE ================= */
 const AI_KEY = 'ai:chats';
 let chats = lsJ(AI_KEY, []);
@@ -530,13 +682,13 @@ function rAIList() {
 $('#ai-txt').addEventListener('keydown', e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); });
 
 /* ================= azioni ================= */
-const R = { home: rHome, aiuti: rAiuti, tutele: rTutele, insieme: rInsieme, tu: rTu, saved: rSaved, quiz: rQuiz, luoghi: () => {} };
+const R = { vicina: rVicina, letters: rLetters, dead: rDead, home: rHome, aiuti: rAiuti, tutele: rTutele, insieme: rInsieme, tu: rTu, saved: rSaved, quiz: rQuiz, luoghi: () => {} };
 document.addEventListener('click', async e => {
   if (e.target.id === 'sheet') { closeSheet(); return; }
   const nb = e.target.closest('#nav button'); if (nb) { tab(nb.dataset.tab); return; }
   const t = e.target.closest('[data-a]'); if (!t || t.disabled) return;
   const a = t.dataset.a, k = t.dataset.k;
-  if (t.closest('#sheet') && !['sheet-x', 'prof-set'].includes(a)) closeSheet();
+  if (t.closest('#sheet') && !['sheet-x', 'prof-set', 'near-cat'].includes(a)) closeSheet();
   switch (a) {
     case 'tab': tab(t.dataset.t); break;
     case 'back': back(); break;
@@ -555,7 +707,22 @@ document.addEventListener('click', async e => {
       if (isSaved(p.id)) { saved = saved.filter(x => x.id !== p.id); toast('Tolto dai salvati'); } else { saved.unshift({ ...p }); toast('Salvato: lo trovi in Tu'); }
       saveSaved(); const sc = $('#s-luogo').scrollTop; openPlace(p); stack.pop(); $('#s-luogo').scrollTop = sc; break; }
     case 'url': openUrl(t.dataset.u); break;
-    case 'other': openOther(); break;
+    case 'vicina': rVicina(); show('vicina'); break;
+    case 'v-open': if (!(await goVicina('extra'))) toast('Vicina non si apre: prova a installarla'); break;
+    case 'v-install': doInstall(t); break;
+    case 't-sos': toolSos(); break;
+    case 't-exit': quickExit(); break;
+    case 't-near': nearSheet(); break;
+    case 'near-cat': nearSheet(k); break;
+    case 't-talk': talkSheet(); break;
+    case 't-letters': rLetters(); show('letters'); break;
+    case 'letter': rLetter(k); show('letter'); break;
+    case 'l-copy': letterOut('copy'); break;
+    case 'l-share': letterOut('share'); break;
+    case 'l-mail': letterOut('mail'); break;
+    case 't-dead': rDead(); show('dead'); break;
+    case 'd-del': { const d = lsJ('scadenze', []).filter(x => x.at !== +t.dataset.at); ls.set('scadenze', JSON.stringify(d)); rDead(); break; }
+    case 'sos112': location.href = 'tel:112'; break;
     case 'pos': { const p = await getPos(true); if (!p) toast('Posizione non disponibile: attivala nelle impostazioni del telefono'); else { $('#map-msg').hidden = true; if (cur === 'luoghi') openMap(); else R[cur]?.(); } break; }
     case 'insieme': rInsieme(); show('insieme'); break;
     case 'i-retry': placesP = null; rInsieme(); break;
@@ -627,6 +794,13 @@ document.addEventListener('submit', async e => {
       break;
     }
     case 'aiuti-q': aQ = $('#a-q').value; rAiuti(); $('#a-q').focus(); break;
+    case 'dead': {
+      const sc = SCADENZE.find(x => x.id === f.dataset.k), v = f.querySelector('input').value; if (!sc || !v) return;
+      const due = sc.calc(new Date(v + 'T12:00:00')).getTime(), list = lsJ('scadenze', []);
+      list.push({ id: sc.id, due, at: Date.now() }); ls.set('scadenze', JSON.stringify(list.slice(-20)));
+      const d = daysLeft(due); toast(d < 0 ? 'Attenzione: la scadenza è già passata' : `Hai tempo fino al ${new Date(due).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}`);
+      rDead(); break;
+    }
     case 'aibox': { const q = f.querySelector('input').value.trim(); if (!q) return; openAI(null, `A proposito di «${f.dataset.topic}»: ${q}`); break; }
     case 'auth': {
       const em = $('#au-em').value.trim(), pw = $('#au-pw').value;
@@ -654,7 +828,10 @@ document.addEventListener('submit', async e => {
 });
 let qT = 0;
 $('#m-q').addEventListener('input', e => { clearTimeout(qT); qT = setTimeout(() => { mQ = e.target.value; rList(); }, 250); });
-document.addEventListener('input', e => { if (e.target.id === 'a-q') { clearTimeout(qT); qT = setTimeout(() => { aQ = e.target.value; const p = e.target.selectionStart; rAiuti(); const i = $('#a-q'); i.focus(); try { i.setSelectionRange(p, p); } catch { /* */ } }, 300); } });
+document.addEventListener('input', e => {
+  const lk = e.target.closest('[data-f="letter"] [data-k]');
+  if (lk && curLetter) { const v = letterVals(); v[lk.dataset.k] = lk.value; ls.set('lettere:dati', JSON.stringify(v)); $('#l-prev').textContent = letterText(curLetter, v); return; }
+  if (e.target.id === 'a-q') { clearTimeout(qT); qT = setTimeout(() => { aQ = e.target.value; const p = e.target.selectionStart; rAiuti(); const i = $('#a-q'); i.focus(); try { i.setSelectionRange(p, p); } catch { /* */ } }, 300); } });
 
 /* ================= avvio ================= */
 rHome(); rAiuti(); rTutele();
