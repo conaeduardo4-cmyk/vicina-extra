@@ -24,3 +24,19 @@ export async function askAI(messages, pos) {
   if (!r.ok || !j.reply) throw new Error(j.error || 'L’assistente non risponde in questo momento. Riprova tra poco.');
   return j.reply;
 }
+
+// documenti su misura (lettera, guida, corso) e aggiornamenti tra le app: stessa funzione, altra modalità
+async function call(body, ms = 70000) {
+  const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+  let r;
+  try {
+    r = await fetch(SB_URL + '/functions/v1/extra-assistente', { method: 'POST', signal: ac.signal,
+      headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY }, body: JSON.stringify({ ...body, device }) });
+  } catch { throw new Error('Non riesco a collegarmi: controlla la connessione e riprova.'); }
+  finally { clearTimeout(t); }
+  let j = {}; try { j = await r.json(); } catch { /* */ }
+  if (!r.ok || !j.reply) throw new Error(j.error || 'L’assistente non risponde in questo momento. Riprova tra poco.');
+  return j.reply;
+}
+export const askDoc = (kind, request) => call({ mode: 'doc', kind, request });
+export const askUpdate = context => call({ mode: 'update', context }, 40000);

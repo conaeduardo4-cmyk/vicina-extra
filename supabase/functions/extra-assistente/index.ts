@@ -12,7 +12,7 @@ const MODELS: Record<string, string[]> = {
   openrouter: list('OPENROUTER_MODELS', 'meta-llama/llama-3.3-70b-instruct:free,openrouter/free')
 };
 const LIMIT = Math.max(1, Number(env('AI_EXTRA_LIMIT', '40')) || 40);
-const BUDGET_MS = 45000;
+const BUDGET_MS = 55000;
 const FUORI = 'Posso aiutarti con servizi sociali, aiuti e diritti, luoghi dove stare in compagnia e come tutelarti in situazioni difficili. Su questo argomento non so risponderti: vuoi chiedermi qualcosa di questi temi?';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
@@ -37,6 +37,25 @@ REGOLE:
 7. Niente markdown complesso: al massimo **grassetto** ed elenchi con "- ".`;
 
 type Turn = { role: 'user' | 'model'; text: string };
+
+// documenti su misura (lettere, guide, corsi): qualsiasi argomento lecito, pronti da stampare o condividere
+const DOC: Record<string, string> = {
+  lettera: `Scrivi una LETTERA pronta da inviare, in italiano corretto e chiaro, sul tono adatto (formale con enti, aziende e uffici; cortese con privati).
+Struttura: destinatario, oggetto, testo, chiusura, firma, luogo e data. Dove mancano dati personali usa segnaposto tra parentesi quadre in MAIUSCOLO, per esempio [NOME E COGNOME], [INDIRIZZO], [DATA]. Non inventare numeri di legge, importi o scadenze: se servono, metti un segnaposto.`,
+  guida: `Scrivi una GUIDA pratica passo passo, chiara per chiunque.
+Struttura: una riga di introduzione, poi sezioni con titoli "## ", passi numerati, cosa preparare, errori da evitare, dove chiedere aiuto. Niente dati inventati: se qualcosa cambia da zona a zona o nel tempo, dillo.`,
+  corso: `Scrivi un piccolo CORSO su misura: da 4 a 7 lezioni brevi.
+Struttura: una riga su a chi è rivolto e cosa saprà fare alla fine; poi per ogni lezione "## Lezione N: titolo", obiettivo in una riga, spiegazione semplice, un esempio, un esercizio pratico. Chiudi con "## Ripasso" (5 punti chiave) e "## Prossimi passi".`
+};
+const DOC_BASE = `Sei l'assistente di Vicina Extra. Crei documenti su misura per la richiesta della persona, su qualsiasi argomento lecito.
+Rispondi SOLO con il documento in Markdown semplice: prima riga "# Titolo", poi il contenuto. Usa "## " per le sezioni, "- " per gli elenchi, "1. " per i passi, **grassetto** con misura. Nessun commento prima o dopo il documento.
+Lingua: italiano, frasi brevi e chiare. Non chiedere dati personali e non inventarli. Se la richiesta riguarda un pericolo per qualcuno, metti all'inizio di chiamare il 112.`;
+const UPD = `Sei l'assistente di Vicina Extra e fai da ponte tra le app Vicina (SOS ed emergenze) e Vicina Extra (servizi sociali, aiuti e tutele).
+Ricevi un riepilogo di cosa è successo di recente nelle due app (per esempio un SOS inviato e chiuso). Scrivi un breve aggiornamento caldo e concreto, in italiano, dando del tu:
+1) una frase che riconosce cosa è successo, senza drammatizzare e senza supposizioni su cosa sia accaduto;
+2) da 2 a 4 passi utili adesso, scelti tra: parlare con qualcuno (linee di ascolto), un centro antiviolenza o il 1522 solo se pertinente, il consultorio o il medico per il supporto psicologico, conservare le prove dell'SOS, aggiornare la cerchia in Vicina, le guide di Vicina Extra;
+3) una riga finale: in pericolo adesso chiama il 112.
+Massimo 120 parole, elenco con "- ". Niente markdown complesso.`;
 const counts = new Map<string, { day: string; n: number }>();
 function take(k: string) {
   const day = new Date().toISOString().slice(0, 10), c = counts.get(k);
@@ -48,8 +67,21 @@ Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') return json({ ok: PROVIDERS.length > 0, configurati: PROVIDERS });
   if (req.method !== 'POST') return json({ error: 'Metodo non supportato' }, 405);
-  let body: { messages?: Turn[]; device?: string; area?: { lat: number; lng: number } | null } = {};
+  let body: { messages?: Turn[]; device?: string; area?: { lat: number; lng: number } | null; mode?: string; kind?: string; request?: string; context?: string } = {};
   try { body = await req.json(); } catch { /* vuoto */ }
+  // documenti su misura e aggiornamenti tra le app
+  if (body.mode === 'doc' || body.mode === 'update') {
+    const ip0 = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim(), dev0 = String(body.device || '').slice(0, 60) || ip0;
+    if (take('d:' + dev0) < 0) return json({ error: `Hai usato i ${LIMIT} messaggi di oggi con l'assistente. Riprova domani.` }, 429);
+    if (!PROVIDERS.length) return json({ error: "L'assistente non è configurato sul server." }, 503);
+    const reqText = String(body.request || body.context || '').slice(0, 3000).trim();
+    if (!reqText) return json({ error: 'Scrivi cosa ti serve.' }, 400);
+    const system = body.mode === 'doc' ? DOC_BASE + '\n\n' + (DOC[String(body.kind)] || DOC.guida) : UPD;
+    const { reply } = await ask(system, [{ role: 'user', text: reqText }], body.mode === 'doc' ? 3500 : 700);
+    if (!reply) return json({ error: "L'assistente non risponde in questo momento. Riprova tra un minuto." }, 502);
+    return json({ reply });
+  }
+
   const msgs: Turn[] = (Array.isArray(body.messages) ? body.messages : [])
     .filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string' && m.text.trim())
     .slice(-12).map(m => ({ role: m.role, text: m.text.slice(0, 1500) }));
@@ -69,7 +101,7 @@ Deno.serve(async req => {
   return json({ reply: out });
 });
 
-async function ask(system: string, msgs: Turn[]) {
+async function ask(system: string, msgs: Turn[], maxTok = 2048) {
   const t0 = Date.now(), errors: string[] = [];
   for (const prov of PROVIDERS) {
     let down = false;
@@ -79,7 +111,7 @@ async function ask(system: string, msgs: Turn[]) {
         const left = BUDGET_MS - (Date.now() - t0);
         if (left < 3000) return { reply: '', errors };
         try {
-          const r = await callModel(prov, model, system, msgs, Math.min(15000, left));
+          const r = await callModel(prov, model, system, msgs, Math.min(maxTok > 2048 ? 30000 : 15000, left), maxTok);
           if (r) return { reply: r, errors };
           break;
         } catch (e) {
@@ -94,17 +126,17 @@ async function ask(system: string, msgs: Turn[]) {
   console.error('extra-assistente', errors);
   return { reply: '', errors };
 }
-function callModel(prov: string, model: string, system: string, msgs: Turn[], ms: number) {
-  if (prov === 'gemini') return askGemini(model, system, msgs, ms);
+function callModel(prov: string, model: string, system: string, msgs: Turn[], ms: number, maxTok = 2048) {
+  if (prov === 'gemini') return askGemini(model, system, msgs, ms, maxTok);
   const url = prov === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://openrouter.ai/api/v1/chat/completions';
-  return askOpenAI(url, KEYS[prov], model, system, msgs, ms, prov === 'openrouter');
+  return askOpenAI(url, KEYS[prov], model, system, msgs, ms, prov === 'openrouter', maxTok);
 }
 async function withTimeout(url: string, init: RequestInit, ms: number) {
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(new Error('timed out')), ms);
   try { return await fetch(url, { ...init, signal: ac.signal }); } finally { clearTimeout(t); }
 }
-async function askOpenAI(url: string, key: string, model: string, system: string, msgs: Turn[], ms: number, openrouter: boolean) {
-  const body: Record<string, unknown> = { model, temperature: 0.4, max_tokens: 2048,
+async function askOpenAI(url: string, key: string, model: string, system: string, msgs: Turn[], ms: number, openrouter: boolean, maxTok = 2048) {
+  const body: Record<string, unknown> = { model, temperature: 0.4, max_tokens: maxTok,
     messages: [{ role: 'system', content: system }, ...msgs.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text }))] };
   if (/gpt-oss/.test(model)) body.reasoning_effort = 'low';
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key };
@@ -114,12 +146,12 @@ async function askOpenAI(url: string, key: string, model: string, system: string
   const d = await r.json();
   return clean(String(d?.choices?.[0]?.message?.content || ''));
 }
-async function askGemini(model: string, system: string, msgs: Turn[], ms: number) {
+async function askGemini(model: string, system: string, msgs: Turn[], ms: number, maxTok = 2048) {
   const base = { systemInstruction: { parts: [{ text: system }] }, contents: msgs.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
     safetySettings: ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'].map(category => ({ category, threshold: 'BLOCK_ONLY_HIGH' })) };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': KEYS.gemini };
-  const tries = [{ ...base, generationConfig: { temperature: 0.4, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }, { ...base, generationConfig: { temperature: 0.4, maxOutputTokens: 8192 } }];
+  const tries = [{ ...base, generationConfig: { temperature: 0.4, maxOutputTokens: maxTok, thinkingConfig: { thinkingBudget: 0 } } }, { ...base, generationConfig: { temperature: 0.4, maxOutputTokens: 8192 } }];
   let last = '';
   for (const b of tries) {
     const r = await withTimeout(url, { method: 'POST', headers, body: JSON.stringify(b) }, ms);

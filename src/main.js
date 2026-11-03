@@ -4,13 +4,13 @@ import './style.css';
 import { Capacitor } from '@capacitor/core';
 import { IC, CATS, CAT, INSIEME_CATS, NUM, SITUAZIONI, SIT, GRUPPI, quizSteps, qText, qOpts, quizResult, TUTELE, TUT } from './data.js';
 import { nearby, dist, dirUrl, hoursTxt } from './places.js';
-import { askAI } from './ai.js';
+import { askAI, askDoc, askUpdate } from './ai.js';
 import { acc, shrink } from './account.js';
-import { VICINA, installed, openVicina, installVicina, onLink, parseLink, fromVicina, saveFromVicina } from './sister.js';
+import { XN, VICINA, installed, openVicina, installVicina, onLink, parseLink, fromVicina, saveFromVicina } from './sister.js';
 import { LETTERE, SCADENZE, daysLeft } from './strumenti.js';
 
 const NATIVE = Capacitor.isNativePlatform();
-const VER = import.meta.env.VITE_APP_VERSION || '1.3.0';
+const VER = import.meta.env.VITE_APP_VERSION || '1.4.0';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const I = (n, c = '') => `<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
@@ -31,7 +31,12 @@ if (NATIVE) {
   import('@capacitor/app').then(m => { AppP = m.App; AppP.addListener('backButton', () => { if (!back()) AppP.exitApp(); }); }).catch(() => {});
   import('@capacitor/splash-screen').then(m => m.SplashScreen.hide()).catch(() => {});
   // margine sotto ora e notifiche se il telefono non lo comunica
-  setTimeout(() => { const v = getComputedStyle(document.documentElement).getPropertyValue('--sat'); if (!/\d/.test(v) || parseFloat(v) < 12) { document.documentElement.style.setProperty('--sat', '32px'); document.documentElement.style.setProperty('--sab', '18px'); } }, 2500);
+  // barre di sistema: le misure vere le chiediamo al telefono (env() su Android spesso vale 0)
+  const css = (k, v) => document.documentElement.style.setProperty(k, v + 'px');
+  const syncInsets = async () => { try { const r = await XN?.insets(); if (r && r.top > 0) { css('--sat', r.top); css('--sab', r.bottom || 0); return true; } } catch { /* */ } return false; };
+  [0, 400, 1200, 3000].forEach(ms => setTimeout(syncInsets, ms));
+  addEventListener('resize', () => setTimeout(syncInsets, 150));
+  setTimeout(() => { if ((parseFloat(document.documentElement.style.getPropertyValue('--sat')) || 0) < 12) { css('--sat', 32); css('--sab', 24); } }, 3500);
 }
 const openUrl = async u => { try { if (Launcher) { await Launcher.openUrl({ url: u }); return; } } catch { /* */ } window.open(u, '_blank'); };
 
@@ -108,7 +113,8 @@ const saveSaved = () => ls.set('saved', JSON.stringify(saved.slice(0, 100)));
 function aiBox(topic, asks = [], title) {
   return `<div class="aibox"><div class="aib-h"><i class="ai-logo">${I('chat')}</i><div class="fl"><b>${esc(title || 'Hai un dubbio su questo?')}</b><span>Chiedi all’assistente su «${esc(topic)}»: ti risponde con parole semplici.</span></div></div>
     ${asks.length ? `<div class="aib-q">${asks.map(q => `<button data-a="ai-q" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>` : ''}
-    <form class="aib-in" data-f="aibox" data-topic="${esc(topic)}"><input type="text" placeholder="Scrivi la tua domanda…" maxlength="600" enterkeyhint="send" aria-label="La tua domanda su ${esc(topic)}"><button aria-label="Chiedi">${I('send')}</button></form></div>`;
+    <form class="aib-in" data-f="aibox" data-topic="${esc(topic)}"><input type="text" placeholder="Scrivi la tua domanda…" maxlength="600" enterkeyhint="send" aria-label="La tua domanda su ${esc(topic)}"><button aria-label="Chiedi">${I('send')}</button></form>
+    <button class="link sm aib-make" data-a="crea" data-q="${esc(topic)}">${I('sparkle')}Crea una guida su misura su questo</button></div>`;
 }
 
 /* ================= HOME ================= */
@@ -119,7 +125,9 @@ const TOOLS = [
   ['t-near', IC.locate, ['rgba(96,165,250,.16)', '#93C5FD'], 'Il più vicino', 'Chiama o vai subito'],
   ['t-talk', IC.phone, ['rgba(52,211,153,.15)', '#34D399'], 'Parla con qualcuno', 'Linee di ascolto gratuite'],
   ['t-letters', IC.edit, ['rgba(156,140,255,.16)', '#B4A8FF'], 'Lettere pronte', 'Comune, bollette, affitto'],
-  ['t-dead', IC.clock, ['rgba(244,114,182,.16)', '#F9A8D4'], 'Scadenze', 'NASpI, ISEE, maternità']
+  ['t-dead', IC.clock, ['rgba(244,114,182,.16)', '#F9A8D4'], 'Scadenze', 'NASpI, ISEE, maternità'],
+  ['t-crea', IC.sparkle, ['rgba(124,108,255,.22)', '#C9C1FF'], 'Crea con l’AI', 'Lettere, guide e corsi su misura'],
+  ['t-agg', IC.bolt, ['rgba(229,72,77,.16)', '#FF8A94'], 'Aggiornamenti', 'Da Vicina e dall’assistente']
 ];
 const toolTile = ([a, ic, c, t, s2, cls]) => `<button class="tool${cls ? ' ' + cls : ''}" data-a="${a}">${sq(c, ic)}<span><b>${esc(t)}</b><small>${esc(s2)}</small></span></button>`;
 const dateStr = () => new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase());
@@ -137,6 +145,7 @@ function rHome() {
       <button class="ask" data-a="ai"><i class="ai-logo">${I('chat')}</i><span>Chiedi</span></button>
     </header>
     <form class="search" data-f="home-q"><svg class="i"><use href="#i-search"/></svg><input id="h-q" type="search" placeholder="Affitto, consultorio, lavoro, ISEE…" autocomplete="off" enterkeyhint="search" aria-label="Cerca un servizio o un aiuto"></form>
+    ${recentBanner()}
     ${res ? `<button class="qcard main" data-a="quiz-res">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Le tue risposte</b><span>${res.sit.length === 1 ? '1 guida' : res.sit.length + ' guide'} agli aiuti e ${res.fun.length + res.cats.length} idee scelte per te.</span><span class="go">Rivedi</span></span></button>`
       : `<button class="qcard main" data-a="quiz">${sq(0, IC.sparkle, 'acc')}<span class="fl"><b>Scopri cosa ti spetta</b><span>Poche domande, diverse in base alla tua età e situazione. Restano sul telefono.</span><span class="go">Inizia · 2 minuti</span></span></button>`}
     <div class="sec"><h2>Strumenti</h2><button class="link" data-a="vicina">Con Vicina</button></div>
@@ -157,7 +166,8 @@ const otherApp = () => `<button class="otherapp" data-a="vicina">${sq(['#E5484D'
 // quello che passiamo a Vicina quando la apriamo: le guide scelte per te e i luoghi salvati
 const forVicina = () => {
   const r = quiz ? quizResult(quiz.r) : null;
-  return { app: 'extra', v: 1, sit: (r?.sit || []).slice(0, 6).map(id => [id, SIT[id].t]), saved: saved.length, at: Date.now() };
+  const dead = lsJ('scadenze', []).map(x => [SCADENZE.find(y => y.id === x.id)?.t || '', x.due]).filter(x => daysLeft(x[1]) >= 0).slice(0, 4);
+  return { app: 'extra', v: 2, sit: (r?.sit || []).slice(0, 6).map(id => [id, SIT[id].t]), saved: saved.length, docs: lsJ('docs', []).slice(0, 4).map(d => d.title), dead, at: Date.now() };
 };
 async function goVicina(path = 'extra') {
   if (NATIVE && await checkOther() && await openVicina(path, forVicina())) return true;
@@ -492,6 +502,7 @@ let pickKind = 'avatar', suG = 'f';
 const ferr = (id, t) => { const e = $('#' + id); if (!e) return; e.hidden = !t; e.textContent = t || ''; };
 async function busy(btn, fn) { if (btn) { btn.disabled = true; btn.dataset.t = btn.textContent; btn.textContent = 'Attendi…'; } try { return await fn(); } finally { if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = btn.dataset.t; } } }
 acc.onChange(u => {
+  if (u) loadAgg().then(() => { if (cur === 'home') rHome(); else if (cur === 'agg') rAgg(); }); else { agg.data = null; invChats = null; }
   if (u && !acc.p && (cur === 'auth' || cur === 'tu')) { rSetup(); return; }
   if (cur === 'auth' || cur === 'setup') { stack = []; tab('tu'); if (u) toast('Ciao' + (acc.p?.name ? ' ' + acc.p.name : '') + '!'); }
   else if (cur === 'tu') rTu();
@@ -528,6 +539,10 @@ function rVicina() {
       <div class="row">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.pin)}<span class="fl"><b>Da Vicina ai servizi</b><span>Da Vicina apri subito centri antiviolenza, servizi sociali e aiuti in Vicina Extra.</span></span></div>
       <div class="row">${sq(['rgba(96,165,250,.16)', '#93C5FD'], IC.sparkle)}<span class="fl"><b>Si scambiano le informazioni</b><span>Quando passi da un’app all’altra: le guide scelte per te, i luoghi salvati, se sei pronta per un’emergenza.</span></span></div>
       <div class="row">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.user)}<span class="fl"><b>Stesso account</b><span>Nome, foto e banner sono gli stessi nelle due app.</span></span></div>
+    </div>
+    <div class="card list" style="margin-top:12px">
+      <button class="row" data-a="t-agg">${sq(['rgba(229,72,77,.16)', '#FF8A94'], IC.bolt)}<span class="fl"><b>Aggiornamenti</b><span>SOS recenti e consigli dell’assistente</span></span>${I('chev', 'chev')}</button>
+      <button class="row" data-a="invite">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.send)}<span class="fl"><b>Invita dalle chat di Vicina</b><span>Arriva con il tasto «Installa»</span></span>${I('chev', 'chev')}</button>
     </div>
     <p class="muted small pad center">Vicina non sostituisce il 112. L’APK arriva dalle release ufficiali su GitHub.</p>`;
 }
@@ -618,6 +633,170 @@ function rDead() {
       <div class="acts2"><button class="btn white" type="submit">Calcola e salva</button><button class="btn ghost" type="button" data-a="sit" data-k="${sc.sit}">La guida</button></div></form>`).join('')}</div>`;
 }
 
+/* ================= CREA CON L'AI: lettere, guide e corsi su misura ================= */
+const KINDS = [['lettera', 'Lettera', 'Pronta da inviare a un ufficio, un’azienda, una persona'], ['guida', 'Guida', 'Passo passo, su qualsiasi cosa'], ['corso', 'Corso', 'Lezioni brevi con esempi ed esercizi']];
+const crea = { kind: 'guida', q: '', busy: false };
+let docs = lsJ('docs', []), curDoc = null;
+const saveDocs = () => ls.set('docs', JSON.stringify(docs.slice(0, 40)));
+const docMd = t => { // markdown semplice → HTML sicuro
+  const lines = esc(t).split('\n'); let out = '', list = '';
+  const close = () => { if (list) { out += `</${list}>`; list = ''; } };
+  const inl = x => x.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([A-ZÀ-Ú0-9 '’.,/]+)\]/g, '<mark>[$1]</mark>');
+  for (const l of lines) {
+    let m;
+    if ((m = /^#\s+(.*)/.exec(l))) { close(); out += `<h1>${inl(m[1])}</h1>`; }
+    else if ((m = /^#{2,3}\s+(.*)/.exec(l))) { close(); out += `<h2>${inl(m[1])}</h2>`; }
+    else if ((m = /^\s*[-•*]\s+(.*)/.exec(l))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += `<li>${inl(m[1])}</li>`; }
+    else if ((m = /^\s*\d+[.)]\s+(.*)/.exec(l))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += `<li>${inl(m[1])}</li>`; }
+    else if (!l.trim()) { close(); }
+    else { close(); out += `<p>${inl(l)}</p>`; }
+  }
+  close(); return out;
+};
+const docTitle = t => (/^#\s+(.*)/m.exec(t)?.[1] || t.split('\n')[0] || 'Documento').replace(/\*\*/g, '').slice(0, 90);
+function rCrea() {
+  const ph = { lettera: 'Es. lettera al Comune per chiedere un contributo per l’affitto, sono senza lavoro da marzo', guida: 'Es. come preparare un colloquio di lavoro se non ne ho mai fatti', corso: 'Es. corso base per usare lo smartphone, per mia nonna di 80 anni' }[crea.kind];
+  $('#s-crea').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Crea con l’AI</h1></div>
+    <p class="lead pad">Scrivi cosa ti serve: l’assistente prepara un documento su misura da stampare, copiare, mandare o aprire con un’altra app.</p>
+    <div class="kinds">${KINDS.map(([k, t2, s2]) => `<button class="kind${crea.kind === k ? ' on' : ''}" data-a="crea-kind" data-k="${k}" aria-pressed="${crea.kind === k}"><b>${t2}</b><span>${s2}</span></button>`).join('')}</div>
+    <form class="form" data-f="crea"><label class="field"><span>Cosa ti serve?</span><textarea id="cr-q" rows="5" maxlength="2000" placeholder="${esc(ph)}">${esc(crea.q)}</textarea></label>
+      <button class="btn white" type="submit" ${crea.busy ? 'disabled' : ''}>${I('sparkle')}${crea.busy ? 'Sto scrivendo…' : 'Crea ' + KINDS.find(x => x[0] === crea.kind)[1].toLowerCase()}</button></form>
+    ${crea.busy ? `<div class="card gen"><i class="typing"><i></i><i></i><i></i></i><span>Ci vuole qualche secondo: sto scrivendo il documento.</span></div>` : ''}
+    ${docs.length ? `<div class="label">I tuoi documenti</div><div class="card list">${docs.map(d => `<button class="row" data-a="doc-open" data-k="${d.id}">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], d.kind === 'lettera' ? IC.edit : d.kind === 'corso' ? IC.list : IC.doc)}<span class="fl"><b>${esc(d.title)}</b><span>${esc(KINDS.find(x => x[0] === d.kind)?.[1] || '')} · ${new Date(d.at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span></span>${I('chev', 'chev')}</button>`).join('')}</div>` : ''}
+    <p class="muted small pad">I documenti restano sul telefono. Rileggili sempre: l’AI può sbagliare, e i dati tra [PARENTESI] vanno completati da te.</p>`;
+}
+async function makeDoc(q) {
+  if (crea.busy) return;
+  crea.q = q; crea.busy = true; rCrea();
+  try {
+    const text = await askDoc(crea.kind, q);
+    const d = { id: 'd' + Date.now(), kind: crea.kind, q, title: docTitle(text), text, at: Date.now() };
+    docs.unshift(d); saveDocs(); crea.busy = false; crea.q = '';
+    rDoc(d.id); show('doc');
+  } catch (e) { crea.busy = false; rCrea(); toast(e.message); }
+}
+const docHtml = d => `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${esc(d.title)}</title><style>
+  body{font:12pt/1.55 Georgia,'Times New Roman',serif;color:#111;margin:2cm;max-width:17cm}
+  h1{font:bold 18pt/1.25 Arial,sans-serif;margin:0 0 14pt}h2{font:bold 13pt/1.3 Arial,sans-serif;margin:18pt 0 6pt}
+  p{margin:0 0 8pt}ul,ol{margin:0 0 10pt 18pt;padding:0}li{margin:0 0 4pt}mark{background:#FFF3B0}
+  footer{margin-top:24pt;font:9pt Arial,sans-serif;color:#777}@page{margin:2cm}</style></head><body>${docMd(d.text)}<footer>Creato con Vicina Extra · ${new Date(d.at).toLocaleDateString('it-IT')}</footer></body></html>`;
+function rDoc(id) {
+  const d = docs.find(x => x.id === id); if (!d) return; curDoc = d;
+  $('#s-doc').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span><button class="roundbtn" data-a="doc-del" aria-label="Elimina">${I('x')}</button></div>
+    <article class="card docv">${docMd(d.text)}</article>
+    <div class="docacts">
+      <button class="act white" data-a="doc-print">${I('doc')}Stampa</button>
+      <button class="act" data-a="doc-share">${I('send')}Manda</button>
+      <button class="act" data-a="doc-file">${I('ext')}Apri con…</button>
+      <button class="act" data-a="doc-copy">${I('list')}Copia</button>
+      <button class="act" data-a="doc-mail">${I('chat')}Email</button>
+      <button class="act" data-a="crea" data-q="${esc(d.q)}">${I('sparkle')}Rifai</button>
+    </div>
+    <p class="muted small pad">Stampa: si apre la stampa del telefono, dove puoi anche salvare in PDF. «Apri con…» salva un file che si apre con Word, Documenti, Drive e altre app.</p>`;
+}
+const plain = t => t.replace(/^#{1,3}\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1');
+async function docOut(how) {
+  const d = curDoc; if (!d) return;
+  try {
+    if (how === 'copy') { await navigator.clipboard.writeText(plain(d.text)); toast('Copiato'); return; }
+    if (how === 'mail') { openUrl(`mailto:?subject=${encodeURIComponent(d.title)}&body=${encodeURIComponent(plain(d.text).slice(0, 1800))}`); return; }
+    if (how === 'print') {
+      if (XN) { await XN.print({ html: docHtml(d), title: d.title }); return; }
+      const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;opacity:0'; document.body.appendChild(f);
+      f.contentDocument.open(); f.contentDocument.write(docHtml(d)); f.contentDocument.close();
+      setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Stampa non disponibile qui: usa «Apri con…»'); } setTimeout(() => f.remove(), 3000); }, 300);
+      return;
+    }
+    if (how === 'share') {
+      if (NATIVE) { const { Share } = await import('@capacitor/share'); await Share.share({ title: d.title, text: plain(d.text), dialogTitle: 'Manda con…' }); return; }
+      if (navigator.share) { await navigator.share({ title: d.title, text: plain(d.text) }); return; }
+      await navigator.clipboard.writeText(plain(d.text)); toast('Copiato: incollalo dove vuoi'); return;
+    }
+    if (how === 'file') {
+      const name = d.title.replace(/[^\w\sàèéìòù-]/gi, '').trim().replace(/\s+/g, '-').slice(0, 50) + '.doc';
+      if (NATIVE) {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        const w = await Filesystem.writeFile({ path: name, data: docHtml(d), directory: Directory.Cache, encoding: Encoding.UTF8 });
+        const { Share } = await import('@capacitor/share');
+        await Share.share({ title: d.title, files: [w.uri], dialogTitle: 'Apri con…' }); return;
+      }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([docHtml(d)], { type: 'application/msword' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+  } catch (e) { if (!/cancel/i.test(String(e?.message))) toast('Non riuscito: ' + (e?.message || 'riprova')); }
+}
+
+/* ================= AGGIORNAMENTI tra Vicina e Vicina Extra (con l'AI da intermediario) ================= */
+let agg = { data: null, err: '', loading: false, ai: lsJ('agg:ai', null) };
+const ago = t => { const m = Math.round((Date.now() - new Date(t)) / 60000), h = Math.round(m / 60), d = Math.round(m / 1440); return m < 60 ? `${m} min fa` : m < 1440 ? (h === 1 ? '1 ora fa' : `${h} ore fa`) : (d === 1 ? 'ieri' : `${d} giorni fa`); };
+const fmt = t => new Date(t).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dur = (a, b) => { const m = Math.round((new Date(b) - new Date(a)) / 60000); return m < 60 ? m + ' min' : Math.round(m / 60) + ' ore'; };
+async function loadAgg() {
+  if (!acc.user) return null;
+  agg.loading = true;
+  try { agg.data = await acc.recent(30); agg.err = ''; } catch (e) { agg.err = e.message; }
+  agg.loading = false; return agg.data;
+}
+function aggEvents() {
+  const ev = [], d = agg.data, v = fromVicina();
+  for (const x of d?.mine || []) ev.push({ t: x.created_at, ic: IC.shield, c: ['#E5484D', '#fff'], title: x.active ? 'SOS in corso' : 'Hai mandato un SOS', sub: `${fmt(x.created_at)}${x.resolved_at ? ' · chiuso dopo ' + dur(x.created_at, x.resolved_at) : x.active ? ' · ancora attivo' : ''}`, k: 'sos-mine', live: x.active });
+  for (const x of d?.got || []) ev.push({ t: x.created_at, ic: IC.people, c: ['rgba(255,107,120,.16)', '#FF8A94'], title: `${x.from_name} ha chiesto aiuto`, sub: `${fmt(x.created_at)}${x.resolved_at ? ' · ora è al sicuro' : x.active ? ' · ancora attivo' : ''}`, k: 'sos-got', live: x.active });
+  for (const x of d?.checks || []) ev.push({ t: x.created_at, ic: IC.people, c: ['rgba(156,140,255,.16)', '#B4A8FF'], title: 'Appello «State tutti bene?»', sub: `${fmt(x.created_at)} · ${x.answered || 0} risposte`, k: 'check' });
+  if (v?.got) ev.push({ t: v.got, ic: IC.check, c: ['rgba(52,211,153,.15)', '#34D399'], title: 'Vicina collegata', sub: [v.ready != null ? `Pronta per un’emergenza: ${v.ready}/${v.total || 5}` : '', v.circle != null ? `${v.circle} nella cerchia` : ''].filter(Boolean).join(' · ') || fmt(v.got), k: 'link' });
+  for (const x of lsJ('scadenze', [])) { const dd = daysLeft(x.due); if (dd >= 0 && dd <= 21) ev.push({ t: Date.now() - 1, ic: IC.clock, c: ['rgba(244,114,182,.16)', '#F9A8D4'], title: (SCADENZE.find(y => y.id === x.id)?.t || 'Scadenza'), sub: dd === 0 ? 'Scade oggi' : `Scade tra ${dd} giorni`, k: 'dead' }); }
+  return ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+}
+const recentSos = () => (agg.data?.mine || []).concat(agg.data?.got || []).find(x => Date.now() - new Date(x.created_at) < 7 * 864e5);
+function recentBanner() {
+  const x = recentSos(); if (!x) return '';
+  const mine = !x.from_name;
+  return `<button class="aggban" data-a="t-agg"><i class="ab-dot"></i><span class="fl"><b>${mine ? (x.active ? 'Il tuo SOS è attivo' : 'Dopo il tuo SOS') : esc(x.from_name) + ' ha chiesto aiuto'}</b><span>${ago(x.created_at)} · l’assistente ti suggerisce cosa fare adesso</span></span>${I('chev', 'chev')}</button>`;
+}
+function rAgg() {
+  const ev = aggEvents();
+  $('#s-agg').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Aggiornamenti</h1></div>
+    <p class="lead pad">Cosa è successo di recente tra Vicina e Vicina Extra, e cosa puoi fare adesso.</p>
+    ${!acc.user ? `<div class="card sync">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.user)}<span class="fl"><b>Accedi con l’account di Vicina</b><span>Così vedi qui i tuoi SOS e gli appelli degli ultimi 30 giorni.</span></span></div><button class="btn white" data-a="login">Accedi</button>` : ''}
+    ${agg.err ? `<p class="muted pad">Non riesco a leggere gli aggiornamenti di Vicina: ${esc(agg.err)}</p>` : ''}
+    <div class="aibox aggai"><div class="aib-h"><i class="ai-logo">${I('sparkle')}</i><div class="fl"><b>L’assistente fa da ponte</b><span>${agg.ai?.at ? 'Aggiornato ' + ago(agg.ai.at) : 'Legge cosa è successo e ti suggerisce i prossimi passi.'}</span></div></div>
+      ${agg.ai?.text ? `<div class="msg bot aggtxt">${md(agg.ai.text)}</div>` : ''}
+      <button class="btn ghost" data-a="agg-ai" id="agg-ai">${I('sparkle')}${agg.ai?.text ? 'Aggiorna il consiglio' : 'Cosa posso fare adesso?'}</button></div>
+    <div class="label">Ultimi 30 giorni</div>
+    ${ev.length ? `<div class="card list">${ev.map(e => `<div class="row">${sq(e.c, e.ic)}<span class="fl"><b>${esc(e.title)}${e.live ? ' <i class="live-dot"></i>' : ''}</b><span>${esc(e.sub)}</span></span></div>`).join('')}</div>`
+      : `<div class="empty"><b>Nessun aggiornamento</b><span>Qui compaiono gli SOS e gli appelli di Vicina, le tue scadenze e il collegamento tra le app.</span></div>`}
+    <div class="acts2"><button class="btn ghost" data-a="t-talk">${I('phone')}Parla con qualcuno</button><button class="btn ghost" data-a="v-open">${I('shield')}Apri Vicina</button></div>`;
+  if (acc.user && !agg.data && !agg.loading) loadAgg().then(() => { if (cur === 'agg') rAgg(); if (cur === 'home') rHome(); });
+}
+async function aggAI(force) {
+  const btn = $('#agg-ai'); if (btn) { btn.disabled = true; btn.textContent = 'L’assistente sta leggendo…'; }
+  const ev = aggEvents().slice(0, 8);
+  const ctx = ev.length ? 'Cosa è successo (dal più recente):\n' + ev.map(e => `- ${e.title}: ${e.sub}`).join('\n') : 'Nessun SOS né appello di recente. La persona vuole sapere come prepararsi e cosa offre Vicina Extra.';
+  try { const text = await askUpdate(ctx); agg.ai = { text, at: Date.now() }; ls.set('agg:ai', JSON.stringify(agg.ai)); }
+  catch (e) { toast(e.message); }
+  if (cur === 'agg') rAgg();
+}
+
+/* ================= INVITA dalle chat di Vicina ================= */
+let invChats = null, invSel = [], invErr = '';
+async function rInvite() {
+  const box = $('#s-invite');
+  const head = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Invita su Vicina Extra</h1></div>
+    <p class="lead pad">Manda l’invito nelle tue chat di Vicina: comparirà con il tasto «Installa». Su Android l’app si installa subito, su iPhone si scarica.</p>`;
+  if (!acc.user) { box.innerHTML = head + `<div class="card sync">${sq(['rgba(156,140,255,.16)', '#B4A8FF'], IC.user)}<span class="fl"><b>Accedi con l’account di Vicina</b><span>Servono le tue chat di Vicina.</span></span></div><button class="btn white" data-a="login">Accedi</button>`; return; }
+  if (!invChats) {
+    box.innerHTML = head + `<p class="muted pad">Carico le tue chat…</p>`;
+    try { invChats = await acc.chats(); invErr = ''; } catch (e) { invErr = e.message; invChats = []; }
+  }
+  box.innerHTML = head + (invErr ? `<p class="muted pad">${esc(invErr)}</p>` : '') + (invChats.length
+    ? `<div class="card list" style="margin-top:12px">${invChats.map(c => `<button class="row pick${invSel.includes(c.id) ? ' on' : ''}" data-a="inv-pick" data-id="${esc(c.id)}" aria-pressed="${invSel.includes(c.id)}">${avatar({ name: c.name.split(' ')[0], surname: c.name.split(' ')[1] || '' })}<span class="fl"><b>${esc(c.name)}</b><span>${esc(c.kind)}</span></span><i class="box">${I('check')}</i></button>`).join('')}</div>
+      <button class="btn white" id="inv-go" data-a="inv-go" ${invSel.length ? '' : 'disabled'}>${invSel.length ? `Invia l’invito (${invSel.length})` : 'Scegli almeno una chat'}</button>`
+    : `<div class="empty"><b>Nessuna chat</b><span>Collegati con qualcuno in Vicina, poi torna qui.</span></div>`);
+}
+async function sendInvites(btn) {
+  if (!invSel.length) return; btn.disabled = true; btn.textContent = 'Invio…';
+  try { await acc.invite(invSel); toast(invSel.length === 1 ? 'Invito mandato' : `Invito mandato in ${invSel.length} chat`); invSel = []; back(); }
+  catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Riprova'; }
+}
+
 /* ================= link da Vicina ================= */
 onLink(url => {
   const L = parseLink(url); if (!L) return;
@@ -682,7 +861,7 @@ function rAIList() {
 $('#ai-txt').addEventListener('keydown', e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); });
 
 /* ================= azioni ================= */
-const R = { vicina: rVicina, letters: rLetters, dead: rDead, home: rHome, aiuti: rAiuti, tutele: rTutele, insieme: rInsieme, tu: rTu, saved: rSaved, quiz: rQuiz, luoghi: () => {} };
+const R = { crea: rCrea, agg: rAgg, invite: rInvite, vicina: rVicina, letters: rLetters, dead: rDead, home: rHome, aiuti: rAiuti, tutele: rTutele, insieme: rInsieme, tu: rTu, saved: rSaved, quiz: rQuiz, luoghi: () => {} };
 document.addEventListener('click', async e => {
   if (e.target.id === 'sheet') { closeSheet(); return; }
   const nb = e.target.closest('#nav button'); if (nb) { tab(nb.dataset.tab); return; }
@@ -707,10 +886,24 @@ document.addEventListener('click', async e => {
       if (isSaved(p.id)) { saved = saved.filter(x => x.id !== p.id); toast('Tolto dai salvati'); } else { saved.unshift({ ...p }); toast('Salvato: lo trovi in Tu'); }
       saveSaved(); const sc = $('#s-luogo').scrollTop; openPlace(p); stack.pop(); $('#s-luogo').scrollTop = sc; break; }
     case 'url': openUrl(t.dataset.u); break;
-    case 'vicina': rVicina(); show('vicina'); break;
+    case 'vicina': await checkOther(); rVicina(); show('vicina'); break;
     case 'v-open': if (!(await goVicina('extra'))) toast('Vicina non si apre: prova a installarla'); break;
     case 'v-install': doInstall(t); break;
     case 't-sos': toolSos(); break;
+    case 't-crea': case 'crea': crea.q = t.dataset.q ? 'Una guida pratica su: ' + t.dataset.q : crea.q; rCrea(); show('crea'); break;
+    case 'crea-kind': crea.kind = k; rCrea(); break;
+    case 'doc-open': rDoc(k); show('doc'); break;
+    case 'doc-del': docs = docs.filter(d => d.id !== curDoc?.id); saveDocs(); back(); toast('Documento eliminato'); break;
+    case 'doc-copy': docOut('copy'); break;
+    case 'doc-share': docOut('share'); break;
+    case 'doc-print': docOut('print'); break;
+    case 'doc-file': docOut('file'); break;
+    case 'doc-mail': docOut('mail'); break;
+    case 't-agg': rAgg(); show('agg'); break;
+    case 'agg-ai': aggAI(true); break;
+    case 'invite': rInvite(); show('invite'); break;
+    case 'inv-pick': { const i = invSel.indexOf(t.dataset.id); if (i >= 0) invSel.splice(i, 1); else invSel.push(t.dataset.id); t.classList.toggle('on', i < 0); t.setAttribute('aria-pressed', i < 0); $('#inv-go').disabled = !invSel.length; $('#inv-go').textContent = invSel.length ? `Invia l’invito (${invSel.length})` : 'Scegli almeno una chat'; break; }
+    case 'inv-go': sendInvites(t); break;
     case 't-exit': quickExit(); break;
     case 't-near': nearSheet(); break;
     case 'near-cat': nearSheet(k); break;
@@ -794,6 +987,7 @@ document.addEventListener('submit', async e => {
       break;
     }
     case 'aiuti-q': aQ = $('#a-q').value; rAiuti(); $('#a-q').focus(); break;
+    case 'crea': { const q = $('#cr-q').value.trim(); if (q.length < 6) { toast('Scrivi qualche parola in più su cosa ti serve'); return; } makeDoc(q); break; }
     case 'dead': {
       const sc = SCADENZE.find(x => x.id === f.dataset.k), v = f.querySelector('input').value; if (!sc || !v) return;
       const due = sc.calc(new Date(v + 'T12:00:00')).getTime(), list = lsJ('scadenze', []);

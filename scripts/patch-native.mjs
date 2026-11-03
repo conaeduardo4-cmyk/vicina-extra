@@ -45,6 +45,7 @@ if (fs.existsSync(man)) {
     const pkg = (m.match(/^package\s+([\w.]+);/m) || [])[1];
     const dir = mainAct.slice(0, mainAct.lastIndexOf('/'));
     fs.writeFileSync(dir + '/EdgeToEdge.java', read('scripts/android/EdgeToEdge.java').replace('__PACKAGE__', pkg));
+    fs.writeFileSync(dir + '/ExtraNativePlugin.java', read('scripts/android/ExtraNativePlugin.java').replace('__PACKAGE__', pkg));
     fs.writeFileSync(dir + '/ApkUpdaterPlugin.java', read('scripts/android/ApkUpdaterPlugin.java').replace('__PACKAGE__', pkg));
     if (!/onCreate\s*\(/.test(m)) {
       if (!m.includes('import android.os.Bundle;')) m = m.replace(/(package[^;]+;)/, '$1\n\nimport android.os.Bundle;');
@@ -60,6 +61,7 @@ if (fs.existsSync(man)) {
         try { getBridge().getWebView().getSettings().setTextZoom(100); } catch (Exception ignored) { }`);
     // il plugin va registrato prima di super.onCreate
     if (!m.includes('ApkUpdaterPlugin')) m = m.replace(/(onCreate\s*\([^)]*\)\s*\{)/, '$1\n        registerPlugin(ApkUpdaterPlugin.class);');
+    if (!m.includes('ExtraNativePlugin')) m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(ExtraNativePlugin.class);');
     fs.writeFileSync(mainAct, m);
     log(m.includes('ApkUpdaterPlugin') ? 'installazione di Vicina (plugin ApkUpdater)' : 'ATTENZIONE: plugin ApkUpdater non registrato');
     log(m.includes('EdgeToEdge.apply') ? 'tutto schermo e testo al 100%' : 'ATTENZIONE: MainActivity non modificata');

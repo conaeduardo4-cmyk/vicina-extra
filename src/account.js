@@ -69,6 +69,37 @@ export const acc = {
     } catch { /* non importa */ }
     await this.load();
   },
+  // ---------- collegamento con Vicina (stesso account, stesse tabelle) ----------
+  // SOS e appelli degli ultimi giorni: quelli che hai mandato tu e quelli che hai ricevuto
+  async recent(days = 30) {
+    if (!this.user) return null;
+    const since = new Date(Date.now() - days * 864e5).toISOString(), uid = this.user.uid;
+    const [mine, got, chk] = await Promise.all([
+      sb.from('sos').select('id, created_at, resolved_at, active').eq('from_uid', uid).gte('created_at', since).order('created_at', { ascending: false }).limit(10),
+      sb.from('sos').select('id, from_name, created_at, resolved_at, active').contains('recipients', [uid]).gte('created_at', since).order('created_at', { ascending: false }).limit(10),
+      sb.from('checks').select('id, reason, created_at, closed_at, active, answered').eq('from_uid', uid).gte('created_at', since).order('created_at', { ascending: false }).limit(5)
+    ]);
+    for (const r of [mine, got, chk]) if (r.error) throw err(r.error);
+    return { mine: mine.data || [], got: (got.data || []).filter(x => x.from_name), checks: chk.data || [] };
+  },
+  // le chat di Vicina: persone collegate e gruppi
+  async chats() {
+    if (!this.user) return [];
+    const uid = this.user.uid;
+    const [l, g] = await Promise.all([sb.from('links').select('id, kind, uids, names'), sb.from('groups').select('id, name, member_uids')]);
+    if (l.error) throw err(l.error);
+    const people = (l.data || []).map(x => { const other = (x.uids || []).find(u => u !== uid); const n = x.names || {}; return { id: x.id, kind: x.kind === 'partner' ? 'Partner' : 'Persona', name: n[other] || Object.entries(n).find(([k]) => k !== uid)?.[1] || 'Contatto' }; });
+    const groups = (g.data || []).filter(x => (x.member_uids || []).includes(uid)).map(x => ({ id: x.id, kind: 'Gruppo', name: x.name }));
+    return [...people, ...groups];
+  },
+  // invito in chat: un messaggio «file» speciale che Vicina mostra con il tasto Installa
+  async invite(chatIds) {
+    const me = this.p ? (this.p.name + ' ' + this.p.surname).trim() : (this.user.email || '').split('@')[0];
+    const rows = chatIds.map(id => ({ chat_id: id, type: 'file', from_uid: this.user.uid, from_name: me, file: 'app:vicina-extra', file_name: 'Vicina Extra', file_size: 6000000, mime: 'application/vnd.android.package-archive',
+      text: 'Ti invito su Vicina Extra: servizi sociali, aiuti e diritti vicino a te. Tocca «Installa».' }));
+    const { error } = await sb.from('messages').insert(rows);
+    if (error) throw err(error);
+  },
   async removePhoto(kind) {
     const r = await sb.rpc(kind === 'banner' ? 'set_banner' : 'set_avatar', kind === 'banner' ? { p_banner: null } : { p_avatar: null });
     if (r.error) throw err(r.error);

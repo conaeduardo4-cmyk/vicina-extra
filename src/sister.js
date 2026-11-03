@@ -10,6 +10,7 @@ export const VICINA = {
   web: 'https://vicina.netlify.app'
 };
 const Apk = ANDROID ? registerPlugin('ApkUpdater') : null;
+export const XN = ANDROID ? registerPlugin('ExtraNative') : null;
 let Launcher = null;
 const launcher = async () => Launcher || (Launcher = NATIVE ? (await import('@capacitor/app-launcher')).AppLauncher : null);
 
@@ -25,12 +26,14 @@ export const saveFromVicina = d => { if (d && typeof d === 'object') ls.set('vic
 
 export async function installed() {
   if (!ANDROID) return false;
+  try { return !!(await XN.installed({ pkg: VICINA.pkg })).value; } catch { /* plugin vecchio: sotto */ }
   try { const L = await launcher(); return !!(await L.canOpenUrl({ url: VICINA.pkg })).value; } catch { return false; }
 }
 
 // apre Vicina su una sezione (sos, walk, siren, extra…) passando le nostre informazioni
 export async function openVicina(path = 'extra', data) {
   const url = VICINA.scheme + path + (data ? (path.includes('?') ? '&' : '?') + 'd=' + pack(data) : '');
+  if (XN) { try { await XN.openApp({ pkg: VICINA.pkg, url }); return true; } catch { /* sotto */ } }
   const L = await launcher();
   if (L) { try { await L.openUrl({ url }); return true; } catch { /* sotto */ } try { await L.openUrl({ url: VICINA.pkg }); return true; } catch { /* */ } }
   return false;

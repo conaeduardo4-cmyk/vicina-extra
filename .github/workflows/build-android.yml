@@ -84,6 +84,49 @@ jobs:
           ls -la out
       - uses: actions/upload-artifact@v4
         with: { name: VicinaExtra-android, path: out/* }
+
+  # iPhone: IPA non firmato (si installa con SideStore/AltStore, come quello di Vicina)
+  ios:
+    name: IPA iPhone
+    runs-on: macos-15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Dipendenze e interfaccia
+        run: npm install --no-audit --no-fund && VITE_APP_VERSION="$APP_VERSION" npm run build
+      - name: Progetto iOS
+        run: |
+          npx cap add ios
+          P=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'Per mostrarti i servizi e i luoghi vicino a te.'" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Per scegliere la foto del profilo.'" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Per scattare la foto del profilo.'" $P || true
+          /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes array" -c "Add :LSApplicationQueriesSchemes:0 string vicina" $P || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" -c "Add :CFBundleURLTypes:0 dict" -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string vicinaextra" $P || true
+          npx capacitor-assets generate --ios --iconBackgroundColor '#5B43F0' --splashBackgroundColor '#09090B' --splashBackgroundColorDark '#09090B' || echo "::warning::Icone iOS non generate"
+          npx cap sync ios
+      - name: Compila (senza firma)
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" > "$RUNNER_TEMP/x.log" 2>&1 || { tail -60 "$RUNNER_TEMP/x.log"; echo "::error title=Xcode::$(grep -E 'error:' "$RUNNER_TEMP/x.log" | head -5 | tr '\n' ' ' | cut -c1-1200)"; exit 1; }
+          mkdir -p out/Payload && cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" out/Payload/
+          cd out && zip -qry VicinaExtra.ipa Payload && rm -rf Payload && ls -la
+      - uses: actions/upload-artifact@v4
+        with: { name: VicinaExtra-ios, path: out/* }
+
+  release:
+    name: Pubblica
+    needs: [android, ios]
+    if: always() && needs.android.result == 'success'
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, pattern: 'VicinaExtra-*', merge-multiple: true }
+      - run: ls -la out; [ -f out/VicinaExtra.ipa ] || echo "::warning::IPA iPhone non disponibile in questa versione"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.APP_VERSION }}
