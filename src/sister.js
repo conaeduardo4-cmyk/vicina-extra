@@ -17,8 +17,18 @@ const launcher = async () => Launcher || (Launcher = NATIVE ? (await import('@ca
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 
 // dati in un link: JSON in base64 «da URL»
-export const pack = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-export const unpack = s => { try { return JSON.parse(decodeURIComponent(escape(atob(String(s).replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return null; } };
+// (UTF-8 → base64 con - e _ al posto di + e /, senza =: lo stesso formato che usa Vicina)
+export const pack = o => {
+  const bytes = new TextEncoder().encode(JSON.stringify(o));
+  let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+export const unpack = s => {
+  try {
+    const b = String(s).replace(/-/g, '+').replace(/_/g, '/'), bin = atob(b + '='.repeat((4 - b.length % 4) % 4));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+  } catch { return null; }
+};
 
 // quello che Vicina ci ha mandato l'ultima volta
 export const fromVicina = () => { try { return JSON.parse(ls.get('vicina:info') || 'null'); } catch { return null; } };

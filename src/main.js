@@ -71,7 +71,13 @@ function closeSheet() { const s = $('#sheet'); if (s.hidden) return false; s.cla
 /* ---------------- navigazione ---------------- */
 const TABS = ['home', 'luoghi', 'aiuti', 'tutele', 'tu'];
 let cur = 'home', stack = [];
+// lettura ad alta voce: si ferma cambiando schermata o tornando indietro
+function stopSpeak() {
+  try { speechSynthesis.cancel(); } catch { /* */ }
+  document.querySelectorAll('[data-a="speak"]').forEach(b => { b.innerHTML = I('sound') + 'Ascolta'; b.setAttribute('aria-pressed', 'false'); });
+}
 function show(id, push = true) {
+  stopSpeak();
   if (push && cur !== id) stack.push(cur);
   cur = id;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
@@ -84,8 +90,8 @@ function show(id, push = true) {
 }
 function tab(t) { stack = []; R[t]?.(); show(t, false); }
 function back() {
+  stopSpeak();
   if (closeSheet()) return true;
-  if (cur === 'ai' && aiBusy) return true;
   if (stack.length) { const p = stack.pop(); R[p]?.(); show(p, false); return true; }
   if (cur !== 'home') { tab('home'); return true; }
   return false;
@@ -152,6 +158,7 @@ function rHome() {
     <div class="tools">${TOOLS.map(toolTile).join('')}</div>
     ${res && res.fun.length ? `<div class="sec"><h2>Per il tuo tempo libero</h2></div><div class="funrow" style="margin-top:10px">${res.fun.slice(0, 3).map(funCard).join('')}</div>` : ''}
     <div class="sec"><h2>Vicino a te</h2><button class="link" data-a="tab" data-t="luoghi">Apri la mappa</button></div>
+    <div class="chips">${PROF.map(([k, t]) => `<button class="${prof === k ? 'on' : ''}" data-a="prof" data-k="${k}" aria-pressed="${prof === k}">${esc(t)}</button>`).join('')}</div>
     <div class="catgrid" style="margin-top:10px">${PROF_CATS[prof].map(id => { const c = CAT[id], k = n(id); return `<button class="cat" data-a="cat" data-k="${id}">${sq(c.c, c.ic)}<span>${esc(c.t)}${k != null ? `<small>${k ? k + ' vicino a te' : 'Vedi sulla mappa'}</small>` : ''}</span></button>`; }).join('')}</div>
     <button class="row card" data-a="insieme">${sq(['rgba(52,211,153,.15)', '#34D399'], IC.people)}<span class="fl"><b>Non sentirti solo</b><span>Luoghi e linee di ascolto per stare in compagnia</span></span>${I('chev', 'chev')}</button>
     ${otherApp()}
@@ -211,7 +218,7 @@ function filtered() {
     (!q || (p.name + ' ' + CAT[p.cat].t + ' ' + one(p) + ' ' + CAT[p.cat].what.join(' ')).toLowerCase().includes(q)));
 }
 function rMapUI() {
-  $('#m-filters').innerHTML = `<button class="${!mAcc ? 'on' : ''}" data-a="m-acc" data-v="0">Tutti</button><button class="${mAcc ? 'on' : ''}" data-a="m-acc" data-v="1">${I('access')}Accessibili</button>${places ? `<button data-a="m-reload" aria-label="Aggiorna i luoghi">${I('locate')}Aggiorna</button>` : ''}`;
+  $('#m-filters').innerHTML = `<button class="${!mAcc ? 'on' : ''}" data-a="m-acc" data-v="0">Tutti</button><button class="${mAcc ? 'on' : ''}" data-a="m-acc" data-v="1">${I('access')}Accessibili</button>${pos ? `<button data-a="m-center" aria-label="Centra la mappa su di me">${I('locate')}Su di me</button>` : ''}${places ? `<button data-a="m-reload" aria-label="Aggiorna i luoghi">${I('search')}Aggiorna</button>` : ''}`;
   const n = id => places ? places.filter(p => p.cat === id).length : 0;
   $('#m-cats').innerHTML = `<button class="${!mCat ? 'on' : ''}" data-a="m-cat" data-k="">Tutte${places ? ` · ${places.length}` : ''}</button>` + CATS.map(c => `<button class="${mCat === c.id ? 'on' : ''}" data-a="m-cat" data-k="${c.id}">${esc(c.t)}${places && n(c.id) ? ` · ${n(c.id)}` : ''}</button>`).join('');
   const q = $('#m-q'); if (q.value !== mQ) q.value = mQ;
@@ -245,8 +252,9 @@ function openPlace(p) {
   $('#s-luogo').innerHTML = `
     <div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span>
       <button class="roundbtn${isSaved(p.id) ? ' on' : ''}" data-a="save" aria-label="${isSaved(p.id) ? 'Togli dai salvati' : 'Salva questo luogo'}" aria-pressed="${isSaved(p.id)}">${I('bookmark')}</button></div>
-    <div class="pl-head">${sq(0, c.ic, 'acc')}<div class="fl"><p class="eyebrow">${esc(one(p).toUpperCase())}</p><h1 class="h1">${esc(p.name)}</h1></div></div>
+    <div class="pl-head">${sq(c.c, c.ic, 'lg')}<div class="fl"><p class="eyebrow">${esc(one(p).toUpperCase())}</p><h1 class="h1">${esc(p.name)}</h1></div></div>
     <p class="pl-meta">${esc([p.addr, p.d != null ? dist(p.d) + ' da te' : '', p.fee === 'no' ? 'Gratuito' : ''].filter(Boolean).join(' · '))}</p>
+    ${tags.length ? `<div class="tags">${tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
     <div class="acts3">
       ${p.phone ? `<a class="act white" href="${telHref(p.phone)}">${I('phone')}Chiama</a>` : `<button class="act white" data-a="ai-q" data-q="${esc('Come posso contattare ' + p.name + '?')}">${I('chat')}Contatti</button>`}
       <button class="act" data-a="url" data-u="${esc(dirUrl(p))}">${I('nav')}Percorso</button>
@@ -285,7 +293,7 @@ function openSit(id) {
   const det = (lab, v) => v ? `<div class="mrow"><span>${lab}</span><p>${esc(v)}</p></div>` : '';
   $('#s-aiuto').innerHTML = `
     <div class="glow" style="--g:${s.c[1]}"></div>
-    <div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span>${canSpeak() ? `<button class="pillbtn" data-a="speak">${I('sound')}Ascolta</button>` : ''}</div>
+    <div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><span class="fl"></span>${canSpeak() ? `<button class="pillbtn" data-a="speak" aria-pressed="false">${I('sound')}Ascolta</button>` : ''}</div>
     <header class="pagehead"><p class="eyebrow" style="color:${s.c[1]}">${esc(s.t.toUpperCase())}</p><h1 class="h1">I tuoi diritti, spiegati semplice</h1><p class="lead">${esc(s.intro)}</p></header>
     <div class="label">Gli aiuti · tocca per i dettagli</div>
     <div class="stack">${s.misure.map((m, i) => `<div class="card mis${i === 0 ? ' open' : ''}">
@@ -572,8 +580,23 @@ function quickExit() {
   $('#cover').hidden = false;
   if (NATIVE) import('@capacitor/app').then(m => m.App.minimizeApp()).catch(() => {});
 }
-function leaveCover() { if (!exited) return; exited = false; $('#cover').hidden = true; tab('home'); }
+// il clic che segue il secondo tocco cadrebbe sotto la copertura (magari su «Uscita rapida»): lo fermiamo
+let swallowClick = 0;
+document.addEventListener('click', e => { if (Date.now() < swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+function leaveCover() { if (!exited) return; exited = false; swallowClick = Date.now() + 450; $('#cover').hidden = true; tab('home'); }
 $('#cover').addEventListener('dblclick', leaveCover);
+// sui telefoni il doppio tocco spesso non arriva come dblclick: lo riconosciamo noi (pointerup, e touchend dove manca)
+{
+  let lastTap = 0, lastEv = 0;
+  const tap = e => {
+    const n = Date.now();
+    if (e.type === 'touchend' && n - lastEv < 60) return;   // lo stesso tocco arriva come pointerup e come touchend
+    lastEv = n;
+    if (n - lastTap < 350) { lastTap = 0; leaveCover(); } else lastTap = n;
+  };
+  $('#cover').addEventListener('pointerup', tap);
+  $('#cover').addEventListener('touchend', tap, { passive: true });
+}
 if (NATIVE) import('@capacitor/app').then(m => m.App.addListener('resume', () => setTimeout(leaveCover, 400))).catch(() => {});
 
 const NEAR = ['sociali', 'comune', 'consultori', 'antiviolenza', 'patronati', 'accoglienza', 'lavoro', 'anziani'];
@@ -837,7 +860,7 @@ function rAI() {
       <div class="stack">${AI_SUGG.map(([q, ic, c]) => `<button class="row card" data-a="ai-chip" data-q="${esc(q)}">${sq(c, ic)}<span class="fl"><b>${esc(q)}</b></span>${I('chev', 'chev')}</button>`).join('')}</div></div>`;
     return;
   }
-  box.innerHTML = msgs.map(m => m.role === 'user' ? `<div class="msg me">${esc(m.text)}</div>` : m.role === 'err' ? `<div class="msg err">${esc(m.text)}</div>` : `<div class="msg bot">${md(m.text)}</div>`).join('')
+  box.innerHTML = msgs.map(m => m.role === 'user' ? `<div class="msg me">${esc(m.text)}</div>` : m.role === 'err' ? `<div class="msg err">${esc(m.text)}<button class="retry" data-a="ai-retry">${I('send')}Riprova</button></div>` : `<div class="msg bot">${md(m.text)}</div>`).join('')
     + (aiBusy ? `<div class="msg bot typing"><i></i><i></i><i></i></div>` : '');
   box.scrollTop = box.scrollHeight;
 }
@@ -845,13 +868,14 @@ async function sendAI(text) {
   text = String(text || '').trim(); if (!text || aiBusy) return;
   $('#ai-txt').value = '';
   if (!chat) { chat = { id: 'c' + Date.now(), title: text.slice(0, 60), at: Date.now(), msgs: [] }; chats.unshift(chat); }
-  chat.msgs.push({ role: 'user', text }); chat.at = Date.now(); aiBusy = true; rAI(); saveChats();
+  const c = chat; // se intanto esci o apri un'altra chat, la risposta va comunque nella sua
+  c.msgs.push({ role: 'user', text }); c.at = Date.now(); aiBusy = true; rAI(); saveChats();
   try {
-    const hist = chat.msgs.filter(m => m.role === 'user' || m.role === 'model').slice(-12);
+    const hist = c.msgs.filter(m => m.role === 'user' || m.role === 'model').slice(-12);
     const r = await askAI(hist, pos);
-    chat.msgs.push({ role: 'model', text: r });
-  } catch (e) { chat.msgs.push({ role: 'err', text: e.message || 'L’assistente non risponde. Riprova tra poco.' }); }
-  aiBusy = false; saveChats(); rAI();
+    c.msgs.push({ role: 'model', text: r });
+  } catch (e) { c.msgs.push({ role: 'err', text: e.message || 'L’assistente non risponde. Riprova tra poco.' }); }
+  aiBusy = false; saveChats(); if (cur === 'ai' && chat === c) rAI();
 }
 function rAIList() {
   $('#s-ailist').innerHTML = `<div class="bar"><button class="roundbtn" data-a="back" aria-label="Indietro">${I('back')}</button><h1 class="bar-t">Le tue chat</h1><button class="pillbtn light" data-a="ai-new">Nuova</button></div>
@@ -879,6 +903,8 @@ document.addEventListener('click', async e => {
     case 'cat': mCat = k; mQ = ''; stack = []; show('luoghi', false); break;
     case 'm-cat': mCat = k; rList(); if (mapApi && pos) mapApi.fit(filtered(), pos); break;
     case 'm-acc': mAcc = t.dataset.v === '1'; rList(); break;
+    case 'm-center': if (mapApi && pos) mapApi.center(pos, 15); else toast('Attiva la posizione per centrare la mappa'); break;
+    case 'm-sheet-toggle': { const sh = $('#m-sheet'); sh.classList.toggle('expanded'); t.setAttribute('aria-expanded', sh.classList.contains('expanded')); setTimeout(() => mapApi?.resize(), 320); break; }
     case 'm-reload': { const me = await getPos(); if (me) { places = null; loadPlaces(me, true); } break; }
     case 'place': { const p = (places || []).find(x => x.id === t.dataset.id); if (p) openPlace(p); break; }
     case 'place-s': { const p = saved.find(x => x.id === t.dataset.id); if (p) openPlace(p); break; }
@@ -933,7 +959,18 @@ document.addEventListener('click', async e => {
     case 'doc': { const i = +t.dataset.i, key = 'doc:' + k; let d = lsJ(key, []); d = d.includes(i) ? d.filter(x => x !== i) : [...d, i]; ls.set(key, JSON.stringify(d));
       t.classList.toggle('on', d.includes(i)); t.setAttribute('aria-pressed', d.includes(i));
       const lab = t.closest('.card').previousElementSibling; if (lab) lab.textContent = `Documenti da preparare · ${d.length}/${SIT[k].doc.length}`; break; }
-    case 'speak': { const txt = $('#s-aiuto').innerText.replace(/Ascolta|Fonte ufficiale|Chiedi su questo/g, ''); try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'it-IT'; speechSynthesis.speak(u); } catch { toast('Lettura non disponibile su questo telefono'); } break; }
+    case 'speak': {
+      if (t.getAttribute('aria-pressed') === 'true') { stopSpeak(); break; }
+      const txt = $('#s-aiuto').innerText.replace(/Ascolta|Ferma|Fonte ufficiale|Chiedi su questo/g, '');
+      try {
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(txt); u.lang = 'it-IT';
+        u.onend = u.onerror = () => stopSpeak();
+        speechSynthesis.speak(u);
+        t.innerHTML = I('x') + 'Ferma'; t.setAttribute('aria-pressed', 'true');
+      } catch { stopSpeak(); toast('Lettura non disponibile su questo telefono'); }
+      break;
+    }
     case 'tut': openTut(k); break;
     case 'i-cat': iCat = k; rInsieme(); break;
     case 'saved': rSaved(); show('saved'); break;
@@ -957,6 +994,13 @@ document.addEventListener('click', async e => {
     case 'ai': openAI(null); break;
     case 'ai-q': openAI(null, t.dataset.q); break;
     case 'ai-chip': sendAI(t.dataset.q); break;
+    case 'ai-retry': {
+      if (!chat || aiBusy) break;
+      while (chat.msgs.length && chat.msgs[chat.msgs.length - 1].role === 'err') chat.msgs.pop();
+      const last = chat.msgs[chat.msgs.length - 1];
+      if (last?.role === 'user') { chat.msgs.pop(); sendAI(last.text); }
+      break;
+    }
     case 'ai-send': sendAI($('#ai-txt').value); break;
     case 'ai-new': chat = null; if (cur !== 'ai') show('ai'); rAI(); break;
     case 'ai-list': rAIList(); show('ailist'); break;

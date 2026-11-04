@@ -33,7 +33,7 @@ export const acc = {
   },
   async load() {
     if (!this.user) return null;
-    const { data, error } = await sb.from('profiles').select('name,surname,bio,city,avatar,banner,gender').eq('id', this.user.uid).maybeSingle();
+    const { data, error } = await sb.from('profiles').select('name,surname,bio,city,avatar,banner,gender,show_bday').eq('id', this.user.uid).maybeSingle();
     if (error) throw err(error);
     const uid = this.user.uid;
     this.p = data ? { ...data, avatar: data.avatar ? pub(uid, data.avatar) : '', banner: data.banner ? pub(uid, data.banner) : '' } : null;
@@ -50,7 +50,7 @@ export const acc = {
     await this.load();
   },
   async save(d) {
-    const { error } = await sb.rpc('set_profile', { p_name: d.name, p_surname: d.surname, p_bio: d.bio || '', p_city: d.city || '', p_show_bday: !!d.showBday });
+    const { error } = await sb.rpc('set_profile', { p_name: d.name, p_surname: d.surname, p_bio: d.bio || '', p_city: d.city || '', p_show_bday: d.showBday ?? this.p?.show_bday ?? false });
     if (error) throw err(error);
     await this.load();
   },
