@@ -1,4 +1,5 @@
 // Vicina Extra: servizi sociali, welfare e luoghi per stare insieme.
+import { copyText } from './compat.js';   // per primo: funzioni mancanti sui telefoni vecchi
 import '@fontsource-variable/manrope';
 import './style.css';
 import { Capacitor } from '@capacitor/core';
@@ -34,9 +35,11 @@ if (NATIVE) {
   // barre di sistema: le misure vere le chiediamo al telefono (env() su Android spesso vale 0)
   const css = (k, v) => document.documentElement.style.setProperty(k, v + 'px');
   const syncInsets = async () => { try { const r = await XN?.insets(); if (r && r.top > 0) { css('--sat', r.top); css('--sab', r.bottom || 0); return true; } } catch { /* */ } return false; };
-  [0, 400, 1200, 3000].forEach(ms => setTimeout(syncInsets, ms));
-  addEventListener('resize', () => setTimeout(syncInsets, 150));
-  setTimeout(() => { if ((parseFloat(document.documentElement.style.getPropertyValue('--sat')) || 0) < 12) { css('--sat', 32); css('--sab', 24); } }, 3500);
+  if (XN) {   // solo Android: su iPhone le misure giuste arrivano già da env() nello stile
+    [0, 400, 1200, 3000].forEach(ms => setTimeout(syncInsets, ms));
+    addEventListener('resize', () => setTimeout(syncInsets, 150));
+    setTimeout(() => { if ((parseFloat(document.documentElement.style.getPropertyValue('--sat')) || 0) < 12) { css('--sat', 32); css('--sab', 24); } }, 3500);
+  }
 }
 const openUrl = async u => { try { if (Launcher) { await Launcher.openUrl({ url: u }); return; } } catch { /* */ } window.open(u, '_blank'); };
 
@@ -72,8 +75,9 @@ function closeSheet() { const s = $('#sheet'); if (s.hidden) return false; s.cla
 const TABS = ['home', 'luoghi', 'aiuti', 'tutele', 'tu'];
 let cur = 'home', stack = [];
 // lettura ad alta voce: si ferma cambiando schermata o tornando indietro
+let speaking = false;
 function stopSpeak() {
-  try { speechSynthesis.cancel(); } catch { /* */ }
+  if (speaking) { speaking = false; if (XN) XN.stopSpeak().catch(() => {}); else try { speechSynthesis.cancel(); } catch { /* */ } }
   document.querySelectorAll('[data-a="speak"]').forEach(b => { b.innerHTML = I('sound') + 'Ascolta'; b.setAttribute('aria-pressed', 'false'); });
 }
 function show(id, push = true) {
@@ -192,7 +196,7 @@ async function openMap() {
     mapLoading = true;
     import('./map.js').then(m => m.createMap($('#map'), { center: me, onPick: p => openPlace(p) }))
       .then(api => { mapApi = api; api.setMe(me); rList(); if (places) api.fit(filtered(), me); })
-      .catch(e => { console.warn('mappa', e); if (cur === 'luoghi') toast('La mappa non si carica: vedi comunque la lista qui sotto'); })
+      .catch(e => { console.warn('mappa', e); mapMsg('La mappa non si carica su questo telefono o senza rete. Qui sotto trovi comunque l’elenco dei luoghi.'); $('#m-sheet').classList.add('expanded'); })
       .finally(() => { mapLoading = false; });
   }
   mapApi?.resize();
@@ -287,7 +291,8 @@ function rAiuti() {
     ${aiBox('gli aiuti e i diritti', ['Cosa mi spetta se ho un ISEE basso?', 'Cos’è un patronato e quanto costa?', 'Come faccio lo SPID?'], 'Non trovi la tua situazione?')}
     <p class="muted small pad">Requisiti e importi cambiano spesso: verifica sempre su inps.it, con un patronato o con i servizi sociali.</p>`;
 }
-const canSpeak = () => 'speechSynthesis' in window && typeof SpeechSynthesisUtterance === 'function';
+const canSpeak = () => !!XN || ('speechSynthesis' in window && typeof SpeechSynthesisUtterance === 'function');
+try { XN?.addListener('speakEnd', () => stopSpeak()); } catch { /* */ }
 function openSit(id) {
   const s = SIT[id], done = lsJ('doc:' + id, []);
   const det = (lab, v) => v ? `<div class="mrow"><span>${lab}</span><p>${esc(v)}</p></div>` : '';
@@ -642,7 +647,7 @@ async function letterOut(how) {
   if (how === 'share') {
     try { if (NATIVE) { const { Share } = await import('@capacitor/share'); await Share.share({ title: l.oggetto, text: txt, dialogTitle: l.t }); return; } if (navigator.share) { await navigator.share({ title: l.oggetto, text: txt }); return; } } catch (e) { if (/cancel/i.test(String(e?.message))) return; }
   }
-  try { await navigator.clipboard.writeText(txt); toast('Lettera copiata'); } catch { toast('Copia non riuscita: seleziona il testo dall’anteprima'); }
+  toast(await copyText(txt) ? 'Lettera copiata' : 'Copia non riuscita: seleziona il testo dall’anteprima');
 }
 // scadenze
 function rDead() {
@@ -721,19 +726,22 @@ const plain = t => t.replace(/^#{1,3}\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1')
 async function docOut(how) {
   const d = curDoc; if (!d) return;
   try {
-    if (how === 'copy') { await navigator.clipboard.writeText(plain(d.text)); toast('Copiato'); return; }
+    if (how === 'copy') { toast(await copyText(plain(d.text)) ? 'Copiato' : 'Copia non riuscita: tieni premuto sul testo per selezionarlo'); return; }
     if (how === 'mail') { openUrl(`mailto:?subject=${encodeURIComponent(d.title)}&body=${encodeURIComponent(plain(d.text).slice(0, 1800))}`); return; }
     if (how === 'print') {
       if (XN) { await XN.print({ html: docHtml(d), title: d.title }); return; }
-      const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;opacity:0'; document.body.appendChild(f);
-      f.contentDocument.open(); f.contentDocument.write(docHtml(d)); f.contentDocument.close();
-      setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Stampa non disponibile qui: usa «Apri con…»'); } setTimeout(() => f.remove(), 3000); }, 300);
-      return;
+      if (NATIVE) { how = 'file'; toast('Su iPhone: apri il documento con Pages o Word e stampa da lì'); }   // iPhone: la pagina non può aprire la stampa da sola
+      else {
+        const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;opacity:0'; document.body.appendChild(f);
+        f.contentDocument.open(); f.contentDocument.write(docHtml(d)); f.contentDocument.close();
+        setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Stampa non disponibile qui: usa «Apri con…»'); } setTimeout(() => f.remove(), 3000); }, 300);
+        return;
+      }
     }
     if (how === 'share') {
       if (NATIVE) { const { Share } = await import('@capacitor/share'); await Share.share({ title: d.title, text: plain(d.text), dialogTitle: 'Manda con…' }); return; }
       if (navigator.share) { await navigator.share({ title: d.title, text: plain(d.text) }); return; }
-      await navigator.clipboard.writeText(plain(d.text)); toast('Copiato: incollalo dove vuoi'); return;
+      toast(await copyText(plain(d.text)) ? 'Copiato: incollalo dove vuoi' : 'Copia non riuscita: tieni premuto sul testo per selezionarlo'); return;
     }
     if (how === 'file') {
       const name = d.title.replace(/[^\w\sàèéìòù-]/gi, '').trim().replace(/\s+/g, '-').slice(0, 50) + '.doc';
@@ -906,7 +914,7 @@ document.addEventListener('click', async e => {
     case 'm-center': if (mapApi && pos) mapApi.center(pos, 15); else toast('Attiva la posizione per centrare la mappa'); break;
     case 'm-sheet-toggle': { const sh = $('#m-sheet'); sh.classList.toggle('expanded'); t.setAttribute('aria-expanded', sh.classList.contains('expanded')); setTimeout(() => mapApi?.resize(), 320); break; }
     case 'm-reload': { const me = await getPos(); if (me) { places = null; loadPlaces(me, true); } break; }
-    case 'place': { const p = (places || []).find(x => x.id === t.dataset.id); if (p) openPlace(p); break; }
+    case 'place': { const p = (places || []).find(x => String(x.id) === t.dataset.id); if (p) openPlace(p); break; }
     case 'place-s': { const p = saved.find(x => x.id === t.dataset.id); if (p) openPlace(p); break; }
     case 'save': { const p = curPlace; if (!p) break;
       if (isSaved(p.id)) { saved = saved.filter(x => x.id !== p.id); toast('Tolto dai salvati'); } else { saved.unshift({ ...p }); toast('Salvato: lo trovi in Tu'); }
@@ -963,11 +971,14 @@ document.addEventListener('click', async e => {
       if (t.getAttribute('aria-pressed') === 'true') { stopSpeak(); break; }
       const txt = $('#s-aiuto').innerText.replace(/Ascolta|Ferma|Fonte ufficiale|Chiedi su questo/g, '');
       try {
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(txt); u.lang = 'it-IT';
-        u.onend = u.onerror = () => stopSpeak();
-        speechSynthesis.speak(u);
-        t.innerHTML = I('x') + 'Ferma'; t.setAttribute('aria-pressed', 'true');
+        speaking = true; t.innerHTML = I('x') + 'Ferma'; t.setAttribute('aria-pressed', 'true');
+        if (XN) await XN.speak({ text: txt.replace(/\s+/g, ' ').trim() });
+        else {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(txt); u.lang = 'it-IT';
+          u.onend = u.onerror = () => stopSpeak();
+          speechSynthesis.speak(u);
+        }
       } catch { stopSpeak(); toast('Lettura non disponibile su questo telefono'); }
       break;
     }

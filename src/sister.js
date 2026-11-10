@@ -3,7 +3,7 @@
 // si apre la schermata di installazione di Android.
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
-const NATIVE = Capacitor.isNativePlatform(), ANDROID = Capacitor.getPlatform() === 'android';
+const NATIVE = Capacitor.isNativePlatform(), ANDROID = Capacitor.getPlatform() === 'android', IOS = Capacitor.getPlatform() === 'ios';
 export const VICINA = {
   pkg: 'it.vicina.app', scheme: 'vicina://',
   apk: 'https://github.com/conaeduardo4-cmyk/vicina-app/releases/latest/download/Vicina.apk',
@@ -12,7 +12,9 @@ export const VICINA = {
 const Apk = ANDROID ? registerPlugin('ApkUpdater') : null;
 export const XN = ANDROID ? registerPlugin('ExtraNative') : null;
 let Launcher = null;
-const launcher = async () => Launcher || (Launcher = NATIVE ? (await import('@capacitor/app-launcher')).AppLauncher : null);
+// Attenzione: un plugin di Capacitor non va mai restituito da una funzione async né atteso con await:
+// ha un finto «then» e l'attesa non finirebbe mai. Per questo qui si carica e basta, e poi si usa la variabile.
+const loadLauncher = async () => { if (!Launcher && NATIVE) { const m = await import('@capacitor/app-launcher'); Launcher = m.AppLauncher; } };
 
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } } };
 
@@ -35,17 +37,22 @@ export const fromVicina = () => { try { return JSON.parse(ls.get('vicina:info') 
 export const saveFromVicina = d => { if (d && typeof d === 'object') ls.set('vicina:info', JSON.stringify({ ...d, got: Date.now() })); };
 
 export async function installed() {
+  // iPhone: si chiede al sistema se qualcuno risponde ai link vicina:// (dichiarato in Info.plist)
+  if (IOS) { try { await loadLauncher(); return !!(await Launcher.canOpenUrl({ url: VICINA.scheme })).value; } catch { return false; } }
   if (!ANDROID) return false;
   try { return !!(await XN.installed({ pkg: VICINA.pkg })).value; } catch { /* plugin vecchio: sotto */ }
-  try { const L = await launcher(); return !!(await L.canOpenUrl({ url: VICINA.pkg })).value; } catch { return false; }
+  try { await loadLauncher(); return !!(await Launcher.canOpenUrl({ url: VICINA.pkg })).value; } catch { return false; }
 }
 
 // apre Vicina su una sezione (sos, walk, siren, extra…) passando le nostre informazioni
 export async function openVicina(path = 'extra', data) {
   const url = VICINA.scheme + path + (data ? (path.includes('?') ? '&' : '?') + 'd=' + pack(data) : '');
   if (XN) { try { await XN.openApp({ pkg: VICINA.pkg, url }); return true; } catch { /* sotto */ } }
-  const L = await launcher();
-  if (L) { try { await L.openUrl({ url }); return true; } catch { /* sotto */ } try { await L.openUrl({ url: VICINA.pkg }); return true; } catch { /* */ } }
+  try { await loadLauncher(); } catch { /* */ }
+  if (Launcher) {
+    try { const r = await Launcher.openUrl({ url }); if (!r || r.completed !== false) return true; } catch { /* sotto */ }
+    if (ANDROID) { try { await Launcher.openUrl({ url: VICINA.pkg }); return true; } catch { /* */ } }
+  }
   return false;
 }
 
@@ -63,7 +70,8 @@ export async function installVicina(onProgress) {
 export function parseLink(url) {
   const m = /^vicinaextra:\/\/([^?#]*)(?:\?([^#]*))?/i.exec(url || ''); if (!m) return null;
   const parts = m[1].split('/').filter(Boolean), q = new URLSearchParams(m[2] || '');
-  return { route: parts[0] || 'home', arg: decodeURIComponent(parts[1] || ''), q, data: q.get('d') ? unpack(q.get('d')) : null };
+  let arg = parts[1] || ''; try { arg = decodeURIComponent(arg); } catch { /* link scritto male: lo teniamo com'è */ }
+  return { route: parts[0] || 'home', arg, q, data: q.get('d') ? unpack(q.get('d')) : null };
 }
 export async function onLink(cb) {
   if (!NATIVE) {   // prova nel browser: #vx=luoghi/consultori

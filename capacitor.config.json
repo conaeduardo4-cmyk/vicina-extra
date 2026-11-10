@@ -2,16 +2,16 @@
   "appId": "it.vicina.extra",
   "appName": "Vicina Extra",
   "webDir": "dist",
-  "backgroundColor": "#09090B",
+  "backgroundColor": "#0B0D13",
   "android": {
-    "backgroundColor": "#09090B",
+    "backgroundColor": "#0B0D13",
     "adjustMarginsForEdgeToEdge": "disable"
   },
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": true,
       "launchShowDuration": 600,
-      "backgroundColor": "#09090B",
+      "backgroundColor": "#0B0D13",
       "showSpinner": false,
       "androidScaleType": "CENTER_CROP"
     },

@@ -4,6 +4,7 @@ package __PACKAGE__;
 // - insets: altezza della barra di stato e della barra di navigazione (per non mettere tasti sotto le barre)
 // - installed / openApp: c'è Vicina? Aprila passandole un link (l'intent va solo a Vicina)
 // - print: stampa un documento (lettera o guida) con la finestra di stampa di Android, anche «Salva come PDF»
+// - speak / stopSpeak: lettura ad alta voce con la voce del telefono (nel WebView di Android quella del browser non c'è)
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -11,6 +12,8 @@ import android.net.Uri;
 import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import com.getcapacitor.JSObject;
@@ -22,6 +25,56 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "ExtraNative")
 public class ExtraNativePlugin extends Plugin {
     private WebView printView; // tenuta in vita finché la stampa è aperta
+    private TextToSpeech tts;
+    private boolean ttsReady;
+
+    // legge un testo ad alta voce; quando ha finito avvisa la pagina con l'evento «speakEnd»
+    @PluginMethod
+    public void speak(final PluginCall call) {
+        final String text = call.getString("text", "");
+        if (text == null || text.length() == 0) { call.reject("Niente da leggere"); return; }
+        getActivity().runOnUiThread(() -> {
+            try {
+                if (tts != null && ttsReady) { say(text); call.resolve(); return; }
+                tts = new TextToSpeech(getContext().getApplicationContext(), status -> {
+                    if (status != TextToSpeech.SUCCESS || tts == null) { tts = null; ttsReady = false; call.reject("Lettura non disponibile su questo telefono"); return; }
+                    ttsReady = true;
+                    try { tts.setLanguage(java.util.Locale.ITALIAN); } catch (Exception ignored) { }
+                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override public void onStart(String id) { }
+                        @Override public void onDone(String id) { if ("vx-last".equals(id)) notifyListeners("speakEnd", new JSObject()); }
+                        @Override public void onError(String id) { notifyListeners("speakEnd", new JSObject()); }
+                    });
+                    try { say(text); call.resolve(); } catch (Exception e) { call.reject("Lettura non disponibile: " + e.getMessage()); }
+                });
+            } catch (Exception e) { call.reject("Lettura non disponibile: " + e.getMessage()); }
+        });
+    }
+
+    // il motore vocale accetta testi fino a qualche migliaio di caratteri: i testi lunghi vanno a pezzi, tagliati sul punto
+    private void say(String text) {
+        int max = Math.max(500, TextToSpeech.getMaxSpeechInputLength() - 200);
+        int i = 0, n = text.length();
+        boolean first = true;
+        while (i < n) {
+            int end = Math.min(n, i + max);
+            if (end < n) { int cut = text.lastIndexOf('.', end); if (cut > i + 200) end = cut + 1; }
+            tts.speak(text.substring(i, end), first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, end >= n ? "vx-last" : "vx-part");
+            first = false; i = end;
+        }
+    }
+
+    @PluginMethod
+    public void stopSpeak(PluginCall call) {
+        try { if (tts != null) tts.stop(); } catch (Exception ignored) { }
+        call.resolve();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        try { if (tts != null) { tts.stop(); tts.shutdown(); } } catch (Exception ignored) { }
+        tts = null; ttsReady = false;
+    }
 
     @PluginMethod
     public void insets(PluginCall call) {

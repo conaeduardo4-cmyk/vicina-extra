@@ -20,6 +20,10 @@ if (fs.existsSync(man)) {
         <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="vicina" /></intent>
         <package android:name="it.vicina.app" />
     </queries>\n</manifest>`);
+  // lettura ad alta voce: da Android 11 il motore vocale del telefono va dichiarato, altrimenti non si trova
+  if (!s.includes('android.intent.action.TTS_SERVICE')) s = s.replace('</queries>', '    <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>\n    </queries>');
+  // l'app è pensata in verticale: sui telefoni resta dritta (sui tablet e pieghevoli recenti Android decide da solo)
+  if (!s.includes('android:screenOrientation')) s = s.replace(/(<activity(?=[^>]*android:name="\.MainActivity"))/, '$1 android:screenOrientation="portrait"');
   // link vicinaextra://… (da Vicina: apre una sezione e passa le informazioni)
   if (!s.includes('android:scheme="vicinaextra"'))
     s = s.replace(/(<activity[\s\S]*?android:name="\.MainActivity"[^>]*>)/, `$1
@@ -82,8 +86,8 @@ if (fs.existsSync(man)) {
   const styles = 'android/app/src/main/res/values/styles.xml';
   if (fs.existsSync(styles)) {
     let st = read(styles);
-    if (!st.includes('android:windowBackground">#09090B'))
-      st = st.replace(/(<style name="AppTheme.NoActionBar"[^>]*>)/, `$1\n        <item name="android:windowBackground">#09090B</item>`);
+    if (!st.includes('android:windowBackground">#0B0D13'))
+      st = st.replace(/(<style name="AppTheme.NoActionBar"[^>]*>)/, `$1\n        <item name="android:windowBackground">#0B0D13</item>`);
     fs.writeFileSync(styles, st); log('sfondo scuro');
   }
 }

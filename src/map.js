@@ -3,6 +3,18 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { darkPhysical, OFM } from './map-style.js';
 import { CAT } from './data.js';
+import { NEEDS_POLY, WORKER_POLY } from './compat.js';
+
+// Telefoni vecchi: il motore della mappa lavora anche in un worker separato, dove le funzioni aggiunte da compat.js
+// non arrivano. Gliele mettiamo in testa al suo codice.
+let patched = false;
+async function patchWorker() {
+  if (patched || !NEEDS_POLY) return; patched = true;
+  try {
+    const src = await (await fetch(maplibregl.getWorkerUrl())).text();
+    maplibregl.setWorkerUrl(URL.createObjectURL(new Blob([WORKER_POLY + '\n' + src], { type: 'text/javascript' })));
+  } catch (e) { console.warn('worker mappa', e); }
+}
 
 async function pickStyle() {
   try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return darkPhysical({ relief: false }); } catch { /* offline */ }
@@ -12,6 +24,7 @@ async function pickStyle() {
 export async function createMap(el, { center, onPick }) {
   const style = await pickStyle();
   if (!style) throw new Error('offline');
+  await patchWorker();
   const map = new maplibregl.Map({
     container: el, style, center: [center.lng, center.lat], zoom: 14,
     attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false,
